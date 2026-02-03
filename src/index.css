@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 /* WhatsApp-inspired Chat Design System */
 @layer base {
@@ -227,7 +227,11 @@
   }
 
   /* Message status icons */
-  .status-sent { color: hsl(var(--muted-foreground)); }
+  /* .status-sent { color: hsl(var(--muted-foreground)); }
   .status-delivered { color: hsl(var(--muted-foreground)); }
-  .status-read { color: hsl(142 70% 45%); }
+  .status-read { color: hsl(142 70% 45%); } */
+
+  .status-sent { color: #6b7280; }
+  .status-delivered { color: #6b7280; }
+  .status-read { color: #055eec; }
 }
