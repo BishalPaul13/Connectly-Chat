@@ -13,11 +13,16 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:8080', process.env.CLIENT_URL || 'http://localhost:5173'],
-    methods: ['GET', 'POST'],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:8080",
+      process.env.CLIENT_URL
+    ].filter(Boolean),
+    methods: ["GET", "POST"],
     credentials: true,
   },
 });
+
 
 const PORT = process.env.PORT || 3001;
 
@@ -29,23 +34,14 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      // In development, allow all localhost origins
-      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    }
-  },
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:8080",
+    process.env.CLIENT_URL
+  ].filter(Boolean),
   credentials: true,
 }));
+
 app.use(express.json());
 
 // Routes
