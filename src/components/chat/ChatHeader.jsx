@@ -35,7 +35,7 @@ export function ChatHeader({ conversation, onBack }) {
                 : "";
 
     return (
-        <div className="flex items-center gap-3 px-4 py-3 bg-chat-header border-b shadow-sm">
+        <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 pt-[env(safe-area-inset-top)] bg-chat-header/95 backdrop-blur border-b shadow-sm">
             {onBack && (
                 <Button
                     variant="ghost"

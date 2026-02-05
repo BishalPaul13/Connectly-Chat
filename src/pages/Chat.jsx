@@ -20,7 +20,7 @@ function ChatLayout() {
     }, [activeConversation]);
 
     return (
-        <div className="h-screen flex overflow-hidden">
+        <div className="h-[100svh] supports-[height:100dvh]:h-[100dvh] flex overflow-hidden">
             {/* Sidebar */}
             <aside
                 className={cn(
