@@ -234,4 +234,8 @@
   .status-sent { color: #6b7280; }
   .status-delivered { color: #6b7280; }
   .status-read { color: #055eec; }
+
+  .dark .status-sent { color: #9ca3af; }
+  .dark .status-delivered { color: #9ca3af; }
+  .dark .status-read { color: #38bdf8; }
 }

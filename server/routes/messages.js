@@ -81,7 +81,8 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     if (!conversation.is_group) {
-      if (conversation.request_status && conversation.request_status !== 'active') {
+      const requestStatus = conversation.request_status ?? 'active';
+      if (requestStatus !== 'active') {
         return res.status(403).json({ error: 'Conversation request not accepted yet' });
       }
 

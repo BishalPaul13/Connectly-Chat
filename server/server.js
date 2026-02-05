@@ -60,6 +60,12 @@ app.get('/api/health', (req, res) => {
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
+  socket.on('join-user', (userId) => {
+    if (userId) {
+      socket.join(`user:${userId}`);
+    }
+  });
+
   socket.on('join-conversation', (conversationId) => {
     socket.join(`conversation:${conversationId}`);
   });

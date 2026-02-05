@@ -305,6 +305,15 @@ router.post('/', authenticate, async (req, res) => {
       })),
       unread_count: 0,
     });
+
+    const io = req.app.get('io');
+    if (io) {
+      userIds.forEach((userId) => {
+        io.to(`user:${userId}`).emit('conversation-created', {
+          conversation_id: newConversation._id.toString(),
+        });
+      });
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -344,7 +353,68 @@ router.post('/:conversationId/accept', authenticate, async (req, res) => {
     const updated = await db.collection(COLLECTIONS.CONVERSATIONS)
       .findOne({ _id: new ObjectId(req.params.conversationId) });
 
+    const io = req.app.get('io');
+    if (io && updated?.participants) {
+      updated.participants.forEach((p) => {
+        io.to(`user:${p.user_id}`).emit('conversation-updated', {
+          conversation_id: updated._id.toString(),
+        });
+      });
+    }
+
     res.json(formatDocument(updated));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a conversation request (recipient only)
+router.post('/:conversationId/delete-request', authenticate, async (req, res) => {
+  try {
+    const db = getDb();
+    const conversation = await db.collection(COLLECTIONS.CONVERSATIONS)
+      .findOne({ _id: new ObjectId(req.params.conversationId) });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    const isParticipant = conversation.participants?.some((p) => p.user_id === req.userId);
+    if (!isParticipant) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const requestStatus = conversation.request_status ?? 'active';
+    if (conversation.is_group || requestStatus === 'active') {
+      return res.status(400).json({ error: 'Request cannot be deleted' });
+    }
+
+    if (conversation.requested_by === req.userId) {
+      return res.status(403).json({ error: 'Requester cannot delete their own request' });
+    }
+
+    const deleteResult = await db.collection(COLLECTIONS.CONVERSATIONS).deleteOne({
+      _id: new ObjectId(req.params.conversationId),
+    });
+
+    if (!deleteResult.deletedCount) {
+      return res.status(400).json({ error: 'Request could not be deleted' });
+    }
+
+    await db.collection(COLLECTIONS.MESSAGES).deleteMany({
+      conversation_id: req.params.conversationId,
+    });
+
+    const io = req.app.get('io');
+    if (io && conversation?.participants) {
+      conversation.participants.forEach((p) => {
+        io.to(`user:${p.user_id}`).emit('conversation-deleted', {
+          conversation_id: req.params.conversationId,
+        });
+      });
+    }
+
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -367,6 +437,18 @@ router.delete('/:conversationId', authenticate, async (req, res) => {
     }
 
     const now = new Date().toISOString();
+    await db.collection(COLLECTIONS.CONVERSATIONS).updateOne(
+      { _id: new ObjectId(req.params.conversationId) },
+      { $addToSet: { deleted_for: req.userId }, $set: { updated_at: now } }
+    );
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${req.userId}`).emit('conversation-deleted', {
+        conversation_id: req.params.conversationId,
+      });
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -406,10 +488,14 @@ router.post('/:conversationId/block', authenticate, async (req, res) => {
       { upsert: true }
     );
 
-    await db.collection(COLLECTIONS.CONVERSATIONS).updateOne(
-      { _id: new ObjectId(req.params.conversationId) },
-      { $addToSet: { deleted_for: req.userId }, $set: { updated_at: now } }
-    );
+    const io = req.app.get('io');
+    if (io) {
+      [req.userId, otherParticipant.user_id].forEach((userId) => {
+        io.to(`user:${userId}`).emit('conversation-updated', {
+          conversation_id: req.params.conversationId,
+        });
+      });
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -446,6 +532,15 @@ router.post('/:conversationId/unblock', authenticate, async (req, res) => {
       blocker_id: req.userId,
       blocked_id: otherParticipant.user_id,
     });
+
+    const io = req.app.get('io');
+    if (io) {
+      [req.userId, otherParticipant.user_id].forEach((userId) => {
+        io.to(`user:${userId}`).emit('conversation-updated', {
+          conversation_id: req.params.conversationId,
+        });
+      });
+    }
 
     res.json({ success: true });
   } catch (error) {

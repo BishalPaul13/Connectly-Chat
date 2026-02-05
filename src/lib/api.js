@@ -133,6 +133,12 @@ export const conversationsApi = {
         });
     },
 
+    deleteRequest: async (conversationId) => {
+        return apiRequest(`/conversations/${conversationId}/delete-request`, {
+            method: 'POST',
+        });
+    },
+
     markAsRead: async (conversationId) => {
         return apiRequest(`/conversations/${conversationId}/read`, {
             method: 'PATCH',

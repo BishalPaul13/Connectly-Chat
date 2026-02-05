@@ -17,6 +17,7 @@ export function ChatPanel({ onBack }) {
         setTyping,
         markAsRead,
         acceptConversationRequest,
+        deleteConversationRequest,
         deleteConversation,
     } = useChat();
 
@@ -43,7 +44,8 @@ export function ChatPanel({ onBack }) {
     }
 
     const isDirect = !activeConversation.is_group;
-    const isPending = isDirect && activeConversation.request_status === "pending";
+    const requestStatus = isDirect ? activeConversation.request_status ?? "active" : "active";
+    const isPending = isDirect && requestStatus !== "active";
     const isRequester = isPending && activeConversation.requested_by === user?.id;
     const blockedByMe = isDirect && activeConversation.blocked_by_me;
     const blockedMe = isDirect && activeConversation.blocked_me;
@@ -52,7 +54,11 @@ export function ChatPanel({ onBack }) {
     let disabledReason = "";
     if (blockedByMe) disabledReason = "You blocked this user";
     if (blockedMe) disabledReason = "You are blocked by this user";
-    if (isPending) disabledReason = isRequester ? "Request sent. Waiting for approval." : "Approve this request to start messaging";
+    if (isPending) {
+        disabledReason = isRequester
+            ? "Request sent. Waiting for approval."
+            : "Approve this request to start messaging";
+    }
 
     return (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-chat-bg">
@@ -77,9 +83,9 @@ export function ChatPanel({ onBack }) {
                                 <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => deleteConversation(activeConversation.id)}
+                                    onClick={() => deleteConversationRequest(activeConversation.id)}
                                 >
-                                    Decline
+                                    Delete request
                                 </Button>
                             </div>
                         )}

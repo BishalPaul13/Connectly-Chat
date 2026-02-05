@@ -46,10 +46,10 @@ export function UserProfile() {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem className="cursor-pointer">
-                            <Settings className="w-4 h-4 mr-2" />
-                            Settings
-                        </DropdownMenuItem>
+                    <DropdownMenuItem className="cursor-pointer">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Settings
+                    </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive">
                             <LogOut className="w-4 h-4 mr-2" />
@@ -58,6 +58,7 @@ export function UserProfile() {
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
+
         </div>
     );
 }

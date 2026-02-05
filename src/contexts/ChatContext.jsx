@@ -75,6 +75,7 @@ export function ChatProvider({ children }) {
         if (!user) return;
 
         const socket = getSocket();
+        socket.emit("join-user", user.id);
 
         // Join all user's conversation rooms
         conversations.forEach(conv => {
@@ -196,10 +197,55 @@ export function ChatProvider({ children }) {
             );
         });
 
+        socket.on("conversation-created", async (data) => {
+            if (!data?.conversation_id) return;
+            try {
+                const newConv = await conversationsApi.getById(data.conversation_id);
+                if (!newConv) return;
+                setConversations((prev) => {
+                    if (prev.find((c) => c.id === newConv.id)) return prev;
+                    return [newConv, ...prev];
+                });
+            } catch (error) {
+                console.error("Error handling conversation-created:", error);
+            }
+        });
+
+        socket.on("conversation-updated", async (data) => {
+            if (!data?.conversation_id) return;
+            try {
+                const updated = await conversationsApi.getById(data.conversation_id);
+                if (!updated) return;
+                setConversations((prev) => {
+                    const index = prev.findIndex((c) => c.id === updated.id);
+                    if (index === -1) return [updated, ...prev];
+                    const next = [...prev];
+                    next[index] = { ...next[index], ...updated };
+                    return next;
+                });
+                if (activeConversation?.id === updated.id) {
+                    _setActiveConversation((prev) => (prev ? { ...prev, ...updated } : prev));
+                }
+            } catch (error) {
+                console.error("Error handling conversation-updated:", error);
+            }
+        });
+
+        socket.on("conversation-deleted", (data) => {
+            if (!data?.conversation_id) return;
+            setConversations((prev) => prev.filter((c) => c.id !== data.conversation_id));
+            if (activeConversation?.id === data.conversation_id) {
+                _setActiveConversation(null);
+            }
+        });
+
         return () => {
             socket.off('new-message');
             socket.off('typing');
             socket.off('message-read');
+            socket.off('conversation-created');
+            socket.off('conversation-updated');
+            socket.off('conversation-deleted');
         };
     }, [user, activeConversation, conversations]);
 
@@ -226,7 +272,8 @@ export function ChatProvider({ children }) {
     const sendMessage = async (content) => {
         if (!user || !activeConversation || !content.trim()) return;
         if (!activeConversation.is_group) {
-            if (activeConversation.request_status && activeConversation.request_status !== "active") {
+            const requestStatus = activeConversation.request_status ?? "active";
+            if (requestStatus !== "active") {
                 return;
             }
             if (activeConversation.blocked_by_me || activeConversation.blocked_me) {
@@ -375,6 +422,22 @@ export function ChatProvider({ children }) {
         }
     };
 
+    const deleteConversationRequest = async (conversationId) => {
+        if (!user) return null;
+
+        try {
+            await conversationsApi.deleteRequest(conversationId);
+            setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+            if (activeConversation?.id === conversationId) {
+                _setActiveConversation(null);
+            }
+            return true;
+        } catch (error) {
+            console.error("Error deleting conversation request:", error);
+            return null;
+        }
+    };
+
     const deleteConversation = async (conversationId) => {
         if (!user) return false;
 
@@ -440,6 +503,7 @@ export function ChatProvider({ children }) {
                 createConversation,
                 createGroupConversation,
                 acceptConversationRequest,
+                deleteConversationRequest,
                 deleteConversation,
                 blockConversation,
                 unblockConversation,

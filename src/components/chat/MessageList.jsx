@@ -13,11 +13,27 @@ function formatDateSeparator(dateString) {
 export function MessageList({ messages, currentUserId, conversation, typingUsers }) {
     const bottomRef = useRef(null);
     const containerRef = useRef(null);
+    const prevCountRef = useRef(0);
 
-    // Auto-scroll to bottom on new messages
+    // Auto-scroll to bottom on new messages (avoid scroll bounce)
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, typingUsers]);
+        if (messages.length === 0) {
+            prevCountRef.current = 0;
+            return;
+        }
+
+        const container = containerRef.current;
+        const isNearBottom = container
+            ? container.scrollHeight - container.scrollTop - container.clientHeight < 120
+            : true;
+
+        const isInitialLoad = prevCountRef.current === 0;
+        if (isNearBottom || isInitialLoad) {
+            bottomRef.current?.scrollIntoView({ behavior: isInitialLoad ? "auto" : "smooth" });
+        }
+
+        prevCountRef.current = messages.length;
+    }, [messages.length, typingUsers.length]);
 
     // Group messages by date
     const messageGroups = [];

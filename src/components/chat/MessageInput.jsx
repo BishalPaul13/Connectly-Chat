@@ -20,6 +20,15 @@ export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason
         adjustTextareaHeight();
     }, [message, adjustTextareaHeight]);
 
+    useEffect(() => {
+        if (disabled) {
+            setMessage("");
+        }
+        requestAnimationFrame(() => {
+            adjustTextareaHeight();
+        });
+    }, [disabled, disabledReason, adjustTextareaHeight]);
+
     const handleTyping = useCallback(() => {
         onTyping(true);
 
@@ -57,7 +66,7 @@ export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason
     };
 
     return (
-        <div className="flex items-end gap-2 p-4 bg-card border-t">
+        <div className="flex items-end gap-2 p-4 bg-card border-t w-full">
             <Button
                 variant="ghost"
                 size="icon"
@@ -66,7 +75,7 @@ export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason
                 <Smile className="w-5 h-5" />
             </Button>
 
-            <div className="flex-1 relative">
+            <div className="flex-1 min-w-0 relative">
                 <textarea
                     ref={textareaRef}
                     value={message}
@@ -79,7 +88,7 @@ export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason
                     disabled={disabled}
                     rows={1}
                     className={cn(
-                        "w-full resize-none rounded-2xl border bg-secondary/50 px-4 py-3 text-sm",
+                        "w-full min-w-0 resize-none rounded-2xl border bg-secondary/50 px-4 py-3 text-sm",
                         "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary",
                         "placeholder:text-muted-foreground disabled:opacity-50",
                         "scrollbar-thin"
