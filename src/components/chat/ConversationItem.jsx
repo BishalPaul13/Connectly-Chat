@@ -33,6 +33,15 @@ export function ConversationItem({ conversation, isActive, onClick }) {
     const lastMessageContent = lastMessage?.content || "No messages yet";
     const lastMessageTime = formatTime(lastMessage?.created_at);
     const isOwnMessage = lastMessage?.sender_id === user?.id;
+    const isPending = !conversation.is_group && conversation.request_status === "pending";
+    const isRequester = isPending && conversation.requested_by === user?.id;
+    const blockedByMe = !conversation.is_group && conversation.blocked_by_me;
+    const blockedMe = !conversation.is_group && conversation.blocked_me;
+
+    let previewText = lastMessageContent;
+    if (blockedByMe) previewText = "You blocked this user";
+    else if (blockedMe) previewText = "You are blocked";
+    else if (isPending) previewText = isRequester ? "Request sent" : "Chat request";
 
     return (
         <button
@@ -67,7 +76,7 @@ export function ConversationItem({ conversation, isActive, onClick }) {
                             )}
                         </span>
                     )}
-                    <p className="text-sm text-muted-foreground truncate flex-1">{lastMessageContent}</p>
+                    <p className="text-sm text-muted-foreground truncate flex-1">{previewText}</p>
                     {conversation.unread_count > 0 && (
                         <span className="flex-shrink-0 min-w-[20px] h-5 px-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-full flex items-center justify-center">
                             {conversation.unread_count > 99 ? "99+" : conversation.unread_count}

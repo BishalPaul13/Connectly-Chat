@@ -73,6 +73,32 @@ router.post('/', authenticate, async (req, res) => {
     if (!isParticipant) {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    if (conversation.deleted_for && conversation.deleted_for.includes(req.userId)) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+    if (conversation.deleted_for && conversation.deleted_for.includes(req.userId)) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    if (!conversation.is_group) {
+      if (conversation.request_status && conversation.request_status !== 'active') {
+        return res.status(403).json({ error: 'Conversation request not accepted yet' });
+      }
+
+      const otherParticipant = conversation.participants.find((p) => p.user_id !== req.userId);
+      if (otherParticipant) {
+        const block = await db.collection(COLLECTIONS.BLOCKS).findOne({
+          $or: [
+            { blocker_id: req.userId, blocked_id: otherParticipant.user_id },
+            { blocker_id: otherParticipant.user_id, blocked_id: req.userId },
+          ],
+        });
+
+        if (block) {
+          return res.status(403).json({ error: 'Messaging is blocked for this conversation' });
+        }
+      }
+    }
 
     const now = new Date().toISOString();
     const message = {

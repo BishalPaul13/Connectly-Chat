@@ -225,6 +225,14 @@ export function ChatProvider({ children }) {
 
     const sendMessage = async (content) => {
         if (!user || !activeConversation || !content.trim()) return;
+        if (!activeConversation.is_group) {
+            if (activeConversation.request_status && activeConversation.request_status !== "active") {
+                return;
+            }
+            if (activeConversation.blocked_by_me || activeConversation.blocked_me) {
+                return;
+            }
+        }
 
         try {
             const newMessage = await messagesApi.create(activeConversation.id, content);
@@ -349,6 +357,76 @@ export function ChatProvider({ children }) {
         }
     };
 
+    const acceptConversationRequest = async (conversationId) => {
+        if (!user) return null;
+
+        try {
+            const updated = await conversationsApi.acceptRequest(conversationId);
+            await fetchConversations();
+            if (activeConversation?.id === conversationId) {
+                _setActiveConversation((prev) =>
+                    prev ? { ...prev, request_status: "active", approved_at: updated?.approved_at } : prev
+                );
+            }
+            return updated;
+        } catch (error) {
+            console.error("Error accepting conversation request:", error);
+            return null;
+        }
+    };
+
+    const deleteConversation = async (conversationId) => {
+        if (!user) return false;
+
+        try {
+            await conversationsApi.delete(conversationId);
+            setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+            if (activeConversation?.id === conversationId) {
+                _setActiveConversation(null);
+            }
+            return true;
+        } catch (error) {
+            console.error("Error deleting conversation:", error);
+            return false;
+        }
+    };
+
+    const blockConversation = async (conversationId) => {
+        if (!user) return false;
+
+        try {
+            await conversationsApi.block(conversationId);
+            await fetchConversations();
+            if (activeConversation?.id === conversationId) {
+                _setActiveConversation((prev) =>
+                    prev ? { ...prev, blocked_by_me: true, blocked_me: false } : prev
+                );
+            }
+            return true;
+        } catch (error) {
+            console.error("Error blocking user:", error);
+            return false;
+        }
+    };
+
+    const unblockConversation = async (conversationId) => {
+        if (!user) return false;
+
+        try {
+            await conversationsApi.unblock(conversationId);
+            await fetchConversations();
+            if (activeConversation?.id === conversationId) {
+                _setActiveConversation((prev) =>
+                    prev ? { ...prev, blocked_by_me: false } : prev
+                );
+            }
+            return true;
+        } catch (error) {
+            console.error("Error unblocking user:", error);
+            return false;
+        }
+    };
+
     return (
         <ChatContext.Provider
             value={{
@@ -361,6 +439,10 @@ export function ChatProvider({ children }) {
                 sendMessage,
                 createConversation,
                 createGroupConversation,
+                acceptConversationRequest,
+                deleteConversation,
+                blockConversation,
+                unblockConversation,
                 setTyping,
                 markAsRead,
                 refreshConversations,

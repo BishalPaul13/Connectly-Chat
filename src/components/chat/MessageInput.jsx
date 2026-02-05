@@ -3,7 +3,7 @@ import { Send, Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function MessageInput({ onSendMessage, onTyping, disabled }) {
+export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason }) {
     const [message, setMessage] = useState("");
     const textareaRef = useRef(null);
     const typingTimeoutRef = useRef();
@@ -75,7 +75,7 @@ export function MessageInput({ onSendMessage, onTyping, disabled }) {
                         handleTyping();
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type a message..."
+                    placeholder={disabled && disabledReason ? disabledReason : "Type a message..."}
                     disabled={disabled}
                     rows={1}
                     className={cn(

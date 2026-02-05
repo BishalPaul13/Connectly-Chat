@@ -5,6 +5,7 @@ export const COLLECTIONS = {
   CONVERSATIONS: 'conversations',
   MESSAGES: 'messages',
   TYPING_INDICATORS: 'typing_indicators',
+  BLOCKS: 'blocks',
 };
 
 // Helper function to convert MongoDB document to API format

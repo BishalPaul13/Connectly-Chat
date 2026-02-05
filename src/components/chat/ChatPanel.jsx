@@ -5,10 +5,20 @@ import { MessageInput } from "./MessageInput";
 import { useChat } from "@/contexts/ChatContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function ChatPanel({ onBack }) {
     const { user } = useAuth();
-    const { activeConversation, messages, typingUsers, sendMessage, setTyping, markAsRead } = useChat();
+    const {
+        activeConversation,
+        messages,
+        typingUsers,
+        sendMessage,
+        setTyping,
+        markAsRead,
+        acceptConversationRequest,
+        deleteConversation,
+    } = useChat();
 
     useEffect(() => {
         if (activeConversation) {
@@ -32,9 +42,61 @@ export function ChatPanel({ onBack }) {
         );
     }
 
+    const isDirect = !activeConversation.is_group;
+    const isPending = isDirect && activeConversation.request_status === "pending";
+    const isRequester = isPending && activeConversation.requested_by === user?.id;
+    const blockedByMe = isDirect && activeConversation.blocked_by_me;
+    const blockedMe = isDirect && activeConversation.blocked_me;
+
+    let inputDisabled = !activeConversation || blockedByMe || blockedMe || isPending;
+    let disabledReason = "";
+    if (blockedByMe) disabledReason = "You blocked this user";
+    if (blockedMe) disabledReason = "You are blocked by this user";
+    if (isPending) disabledReason = isRequester ? "Request sent. Waiting for approval." : "Approve this request to start messaging";
+
     return (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-chat-bg">
             <ChatHeader conversation={activeConversation} onBack={onBack} />
+
+            {isPending && (
+                <div className="px-4 py-3 bg-muted/60 border-b">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm text-foreground">
+                            {isRequester
+                                ? "Chat request sent. You can message after it’s accepted."
+                                : "New chat request. Accept to start messaging."}
+                        </div>
+                        {!isRequester && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    size="sm"
+                                    onClick={() => acceptConversationRequest(activeConversation.id)}
+                                >
+                                    Accept
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => deleteConversation(activeConversation.id)}
+                                >
+                                    Decline
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {(blockedByMe || blockedMe) && (
+                <div className="px-4 py-3 bg-muted/60 border-b">
+                    <div className="text-sm text-foreground">
+                        {blockedByMe
+                            ? "You blocked this user. Messaging is disabled."
+                            : "You can’t message this user because you are blocked."}
+                    </div>
+                </div>
+            )}
+
             <MessageList
                 messages={messages}
                 currentUserId={user?.id || ""}
@@ -44,7 +106,8 @@ export function ChatPanel({ onBack }) {
             <MessageInput
                 onSendMessage={sendMessage}
                 onTyping={setTyping}
-                disabled={!activeConversation}
+                disabled={inputDisabled}
+                disabledReason={disabledReason}
             />
         </div>
     );

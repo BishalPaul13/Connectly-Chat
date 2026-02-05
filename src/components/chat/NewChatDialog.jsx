@@ -53,9 +53,12 @@ export function NewChatDialog({ open, onOpenChange }) {
             if (conversation) {
                 // Only close dialog if conversation was successfully created
                 onOpenChange(false);
+                const isPending = !conversation.is_group && conversation.request_status === "pending";
                 toast({
-                    title: "Conversation started",
-                    description: `You can now chat with ${selectedUser.full_name || selectedUser.username}`,
+                    title: isPending ? "Request sent" : "Conversation started",
+                    description: isPending
+                        ? `Waiting for ${selectedUser.full_name || selectedUser.username} to accept`
+                        : `You can now chat with ${selectedUser.full_name || selectedUser.username}`,
                 });
             } else {
                 // Show error message - check console for details

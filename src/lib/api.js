@@ -127,9 +127,33 @@ export const conversationsApi = {
         });
     },
 
+    acceptRequest: async (conversationId) => {
+        return apiRequest(`/conversations/${conversationId}/accept`, {
+            method: 'POST',
+        });
+    },
+
     markAsRead: async (conversationId) => {
         return apiRequest(`/conversations/${conversationId}/read`, {
             method: 'PATCH',
+        });
+    },
+
+    delete: async (conversationId) => {
+        return apiRequest(`/conversations/${conversationId}`, {
+            method: 'DELETE',
+        });
+    },
+
+    block: async (conversationId) => {
+        return apiRequest(`/conversations/${conversationId}/block`, {
+            method: 'POST',
+        });
+    },
+
+    unblock: async (conversationId) => {
+        return apiRequest(`/conversations/${conversationId}/unblock`, {
+            method: 'POST',
         });
     },
 };

@@ -26,11 +26,35 @@ async function authenticate(req, res, next) {
 router.get('/', authenticate, async (req, res) => {
   try {
     const db = getDb();
+    const blocks = await db.collection(COLLECTIONS.BLOCKS)
+      .find({
+        $or: [
+          { blocker_id: req.userId },
+          { blocked_id: req.userId },
+        ],
+      })
+      .toArray();
+
+    const blockedByMe = new Set(
+      blocks
+        .filter((b) => b.blocker_id === req.userId)
+        .map((b) => b.blocked_id)
+    );
+    const blockedMe = new Set(
+      blocks
+        .filter((b) => b.blocked_id === req.userId)
+        .map((b) => b.blocker_id)
+    );
 
     // Get all conversations where user is a participant
     const participants = await db.collection(COLLECTIONS.CONVERSATIONS)
       .aggregate([
-        { $match: { 'participants.user_id': req.userId } },
+        {
+          $match: {
+            'participants.user_id': req.userId,
+            deleted_for: { $ne: req.userId },
+          },
+        },
         {
           $lookup: {
             from: COLLECTIONS.MESSAGES,
@@ -85,6 +109,8 @@ router.get('/', authenticate, async (req, res) => {
 
     const conversations = formatDocuments(participants).map((conv) => {
       const userParticipant = conv.participants.find((p) => p.user_id === req.userId);
+      const otherParticipant = conv.participants.find((p) => p.user_id !== req.userId);
+      const isDirect = !conv.is_group && otherParticipant?.user_id;
       const unreadCount = (conv.messages || []).filter(
         (m) => m.sender_id !== req.userId && new Date(m.created_at) > new Date(userParticipant?.last_read_at || 0)
       ).length;
@@ -93,6 +119,8 @@ router.get('/', authenticate, async (req, res) => {
         ...conv,
         last_message: conv.last_message ? formatDocument(conv.last_message) : undefined,
         unread_count: unreadCount,
+        blocked_by_me: isDirect ? blockedByMe.has(otherParticipant.user_id) : false,
+        blocked_me: isDirect ? blockedMe.has(otherParticipant.user_id) : false,
         participants: conv.participants.map((p) => ({
           ...p,
           profile: p.profile ? formatDocument(p.profile) : null,
@@ -122,6 +150,9 @@ router.get('/:conversationId', authenticate, async (req, res) => {
     if (!isParticipant) {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    if (conversation.deleted_for && conversation.deleted_for.includes(req.userId)) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
 
     // Get profiles for participants
     const userIds = conversation.participants.map((p) => p.user_id);
@@ -130,9 +161,21 @@ router.get('/:conversationId', authenticate, async (req, res) => {
       .toArray();
 
     const profileMap = new Map(profiles.map((p) => [p.user_id, formatDocument(p)]));
+    const otherParticipant = conversation.participants.find((p) => p.user_id !== req.userId);
+    const isDirect = !conversation.is_group && otherParticipant?.user_id;
+    const block = isDirect
+      ? await db.collection(COLLECTIONS.BLOCKS).findOne({
+        $or: [
+          { blocker_id: req.userId, blocked_id: otherParticipant.user_id },
+          { blocker_id: otherParticipant.user_id, blocked_id: req.userId },
+        ],
+      })
+      : null;
 
     const conversationWithDetails = {
       ...formatDocument(conversation),
+      blocked_by_me: !!(isDirect && block && block.blocker_id === req.userId),
+      blocked_me: !!(isDirect && block && block.blocker_id === otherParticipant?.user_id),
       participants: conversation.participants.map((p) => ({
         ...p,
         id: p.id || new ObjectId().toString(),
@@ -172,15 +215,31 @@ router.post('/', authenticate, async (req, res) => {
       });
 
       if (existing) {
+        await db.collection(COLLECTIONS.CONVERSATIONS).updateOne(
+          { _id: existing._id },
+          { $pull: { deleted_for: req.userId } }
+        );
+
         // Return existing conversation
         const profiles = await db.collection(COLLECTIONS.PROFILES)
           .find({ user_id: { $in: [req.userId, participantId] } })
           .toArray();
 
         const profileMap = new Map(profiles.map((p) => [p.user_id, formatDocument(p)]));
+        const existingOther = existing.participants.find((p) => p.user_id !== req.userId);
+        const existingBlock = existingOther
+          ? await db.collection(COLLECTIONS.BLOCKS).findOne({
+            $or: [
+              { blocker_id: req.userId, blocked_id: existingOther.user_id },
+              { blocker_id: existingOther.user_id, blocked_id: req.userId },
+            ],
+          })
+          : null;
 
         return res.json({
           ...formatDocument(existing),
+          blocked_by_me: !!(existingBlock && existingBlock.blocker_id === req.userId),
+          blocked_me: !!(existingBlock && existingBlock.blocker_id === existingOther?.user_id),
           participants: existing.participants.map((p) => ({
             ...p,
             id: p.id || new ObjectId().toString(),
@@ -188,6 +247,18 @@ router.post('/', authenticate, async (req, res) => {
           })),
           unread_count: 0,
         });
+      }
+
+      // Check if users are blocked (only if no existing conversation)
+      const block = await db.collection(COLLECTIONS.BLOCKS).findOne({
+        $or: [
+          { blocker_id: req.userId, blocked_id: participantId },
+          { blocker_id: participantId, blocked_id: req.userId },
+        ],
+      });
+
+      if (block) {
+        return res.status(403).json({ error: 'Cannot start a conversation with this user' });
       }
 
       // Create new direct conversation
@@ -203,6 +274,10 @@ router.post('/', authenticate, async (req, res) => {
       avatar_url: null,
       created_by: req.userId,
       participants,
+      request_status: isGroup ? 'active' : 'pending',
+      requested_by: isGroup ? null : req.userId,
+      requested_at: isGroup ? null : now,
+      approved_at: isGroup ? now : null,
       created_at: now,
       updated_at: now,
     };
@@ -221,6 +296,8 @@ router.post('/', authenticate, async (req, res) => {
 
     res.json({
       ...formatDocument(newConversation),
+      blocked_by_me: false,
+      blocked_me: false,
       participants: newConversation.participants.map((p) => ({
         ...p,
         id: p.id || new ObjectId().toString(),
@@ -228,6 +305,149 @@ router.post('/', authenticate, async (req, res) => {
       })),
       unread_count: 0,
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Accept a conversation request
+router.post('/:conversationId/accept', authenticate, async (req, res) => {
+  try {
+    const db = getDb();
+    const conversation = await db.collection(COLLECTIONS.CONVERSATIONS)
+      .findOne({ _id: new ObjectId(req.params.conversationId) });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    const isParticipant = conversation.participants?.some((p) => p.user_id === req.userId);
+    if (!isParticipant) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    if (conversation.is_group || conversation.request_status !== 'pending') {
+      return res.status(400).json({ error: 'Conversation cannot be accepted' });
+    }
+
+    if (conversation.requested_by === req.userId) {
+      return res.status(403).json({ error: 'Requester cannot accept their own request' });
+    }
+
+    const now = new Date().toISOString();
+
+    await db.collection(COLLECTIONS.CONVERSATIONS).updateOne(
+      { _id: new ObjectId(req.params.conversationId) },
+      { $set: { request_status: 'active', approved_at: now, updated_at: now } }
+    );
+
+    const updated = await db.collection(COLLECTIONS.CONVERSATIONS)
+      .findOne({ _id: new ObjectId(req.params.conversationId) });
+
+    res.json(formatDocument(updated));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete conversation for current user
+router.delete('/:conversationId', authenticate, async (req, res) => {
+  try {
+    const db = getDb();
+    const conversation = await db.collection(COLLECTIONS.CONVERSATIONS)
+      .findOne({ _id: new ObjectId(req.params.conversationId) });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    const isParticipant = conversation.participants?.some((p) => p.user_id === req.userId);
+    if (!isParticipant) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const now = new Date().toISOString();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Block a user in a direct conversation
+router.post('/:conversationId/block', authenticate, async (req, res) => {
+  try {
+    const db = getDb();
+    const conversation = await db.collection(COLLECTIONS.CONVERSATIONS)
+      .findOne({ _id: new ObjectId(req.params.conversationId) });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    if (conversation.is_group) {
+      return res.status(400).json({ error: 'Blocking is only supported for direct conversations' });
+    }
+
+    const isParticipant = conversation.participants?.some((p) => p.user_id === req.userId);
+    if (!isParticipant) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const otherParticipant = conversation.participants.find((p) => p.user_id !== req.userId);
+    if (!otherParticipant) {
+      return res.status(400).json({ error: 'Invalid conversation participants' });
+    }
+
+    const now = new Date().toISOString();
+
+    await db.collection(COLLECTIONS.BLOCKS).updateOne(
+      { blocker_id: req.userId, blocked_id: otherParticipant.user_id },
+      { $setOnInsert: { blocker_id: req.userId, blocked_id: otherParticipant.user_id, created_at: now } },
+      { upsert: true }
+    );
+
+    await db.collection(COLLECTIONS.CONVERSATIONS).updateOne(
+      { _id: new ObjectId(req.params.conversationId) },
+      { $addToSet: { deleted_for: req.userId }, $set: { updated_at: now } }
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unblock a user in a direct conversation
+router.post('/:conversationId/unblock', authenticate, async (req, res) => {
+  try {
+    const db = getDb();
+    const conversation = await db.collection(COLLECTIONS.CONVERSATIONS)
+      .findOne({ _id: new ObjectId(req.params.conversationId) });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    if (conversation.is_group) {
+      return res.status(400).json({ error: 'Unblocking is only supported for direct conversations' });
+    }
+
+    const isParticipant = conversation.participants?.some((p) => p.user_id === req.userId);
+    if (!isParticipant) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const otherParticipant = conversation.participants.find((p) => p.user_id !== req.userId);
+    if (!otherParticipant) {
+      return res.status(400).json({ error: 'Invalid conversation participants' });
+    }
+
+    await db.collection(COLLECTIONS.BLOCKS).deleteOne({
+      blocker_id: req.userId,
+      blocked_id: otherParticipant.user_id,
+    });
+
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
