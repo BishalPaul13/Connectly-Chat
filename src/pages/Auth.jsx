@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Auth() {
     const { user, loading, signIn, signUp } = useAuth();
+    const { theme, setTheme } = useTheme();
+    const previousThemeRef = useRef(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -23,6 +26,23 @@ export default function Auth() {
     const [registerPassword, setRegisterPassword] = useState("");
     const [registerUsername, setRegisterUsername] = useState("");
     const [registerFullName, setRegisterFullName] = useState("");
+
+    useEffect(() => {
+        if (previousThemeRef.current === null) {
+            previousThemeRef.current = theme ?? "system";
+        }
+
+        if (theme !== "light") {
+            setTheme("light");
+        }
+
+        return () => {
+            if (previousThemeRef.current) {
+                setTheme(previousThemeRef.current);
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     if (loading) {
         return (
