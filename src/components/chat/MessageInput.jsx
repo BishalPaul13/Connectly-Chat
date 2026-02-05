@@ -7,6 +7,17 @@ export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason
     const [message, setMessage] = useState("");
     const textareaRef = useRef(null);
     const typingTimeoutRef = useRef();
+    const focusInputForEmoji = useCallback(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.focus();
+        const length = el.value.length;
+        try {
+            el.setSelectionRange(length, length);
+        } catch {
+            // noop: some browsers don't support setSelectionRange on textarea
+        }
+    }, []);
 
     const adjustTextareaHeight = useCallback(() => {
         const textarea = textareaRef.current;
@@ -70,7 +81,9 @@ export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason
             <Button
                 variant="ghost"
                 size="icon"
-                className="flex-shrink-0 text-muted-foreground hover:text-foreground rounded-full"
+                className="flex-shrink-0 text-muted-foreground hover:text-foreground rounded-full self-center"
+                onClick={focusInputForEmoji}
+                aria-label="Open emoji picker"
             >
                 <Smile className="w-5 h-5" />
             </Button>
@@ -84,6 +97,8 @@ export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason
                         handleTyping();
                     }}
                     onKeyDown={handleKeyDown}
+                    inputMode="text"
+                    enterKeyHint="send"
                     placeholder={disabled && disabledReason ? disabledReason : "Type a message..."}
                     disabled={disabled}
                     rows={1}
@@ -100,7 +115,7 @@ export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason
                 onClick={handleSend}
                 disabled={!message.trim() || disabled}
                 size="icon"
-                className="flex-shrink-0 rounded-full h-10 w-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
+                className="flex-shrink-0 rounded-full h-10 w-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md self-center"
             >
                 <Send className="w-4 h-4" />
             </Button>

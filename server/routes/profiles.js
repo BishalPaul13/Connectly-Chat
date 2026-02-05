@@ -107,6 +107,14 @@ router.patch('/:userId/status', authenticate, async (req, res) => {
       }
     );
 
+    const profile = await db.collection(COLLECTIONS.PROFILES)
+      .findOne({ user_id: req.params.userId });
+
+    const io = req.app.get('io');
+    if (io && profile) {
+      io.emit('profile-status', formatDocument(profile));
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -239,6 +239,30 @@ export function ChatProvider({ children }) {
             }
         });
 
+        socket.on("profile-status", (profile) => {
+            if (!profile?.user_id) return;
+            setConversations((prev) =>
+                prev.map((conv) => ({
+                    ...conv,
+                    participants: conv.participants.map((p) =>
+                        p.user_id === profile.user_id
+                            ? { ...p, profile: { ...p.profile, ...profile } }
+                            : p
+                    ),
+                }))
+            );
+            if (activeConversation) {
+                const updatedParticipants = activeConversation.participants.map((p) =>
+                    p.user_id === profile.user_id
+                        ? { ...p, profile: { ...p.profile, ...profile } }
+                        : p
+                );
+                _setActiveConversation((prev) =>
+                    prev ? { ...prev, participants: updatedParticipants } : prev
+                );
+            }
+        });
+
         return () => {
             socket.off('new-message');
             socket.off('typing');
@@ -246,6 +270,7 @@ export function ChatProvider({ children }) {
             socket.off('conversation-created');
             socket.off('conversation-updated');
             socket.off('conversation-deleted');
+            socket.off('profile-status');
         };
     }, [user, activeConversation, conversations]);
 
