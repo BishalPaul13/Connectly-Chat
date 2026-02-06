@@ -123,6 +123,8 @@ export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason
                 disabled={!message.trim() || disabled}
                 size="icon"
                 className="flex-shrink-0 rounded-full h-10 w-10 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md self-center"
+                onMouseDown={(e) => e.preventDefault()}
+                onTouchStart={(e) => e.preventDefault()}
             >
                 <Send className="w-4 h-4" />
             </Button>
