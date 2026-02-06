@@ -67,6 +67,13 @@ export function MessageInput({ onSendMessage, onTyping, disabled, disabledReason
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto";
         }
+
+        // Keep focus on mobile after sending
+        requestAnimationFrame(() => {
+            if (textareaRef.current && !disabled) {
+                textareaRef.current.focus();
+            }
+        });
     }, [message, disabled, onSendMessage, onTyping]);
 
     const handleKeyDown = (e) => {
