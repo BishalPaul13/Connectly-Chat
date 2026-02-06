@@ -150,6 +150,9 @@ router.get('/:conversationId', authenticate, async (req, res) => {
     if (!isParticipant) {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    if (conversation.created_by !== req.userId) {
+      return res.status(403).json({ error: 'Only the group admin can add members' });
+    }
     if (conversation.deleted_for && conversation.deleted_for.includes(req.userId)) {
       return res.status(404).json({ error: 'Conversation not found' });
     }
@@ -334,6 +337,9 @@ router.post('/:conversationId/accept', authenticate, async (req, res) => {
     if (!isParticipant) {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    if (conversation.created_by !== req.userId) {
+      return res.status(403).json({ error: 'Only the group admin can remove members' });
+    }
 
     if (conversation.is_group || conversation.request_status !== 'pending') {
       return res.status(400).json({ error: 'Conversation cannot be accepted' });
@@ -455,6 +461,142 @@ router.delete('/:conversationId', authenticate, async (req, res) => {
   }
 });
 
+// Add a user to a group conversation
+router.post('/:conversationId/participants', authenticate, async (req, res) => {
+  try {
+    const db = getDb();
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    const conversation = await db.collection(COLLECTIONS.CONVERSATIONS)
+      .findOne({ _id: new ObjectId(req.params.conversationId) });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    if (!conversation.is_group) {
+      return res.status(400).json({ error: 'Only group conversations support participants' });
+    }
+
+    const isParticipant = conversation.participants?.some((p) => p.user_id === req.userId);
+    if (!isParticipant) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const now = new Date().toISOString();
+    await db.collection(COLLECTIONS.CONVERSATIONS).updateOne(
+      { _id: new ObjectId(req.params.conversationId) },
+      {
+        $addToSet: {
+          participants: {
+            user_id: userId,
+            joined_at: now,
+            last_read_at: now,
+          },
+        },
+        $set: { updated_at: now },
+      }
+    );
+
+    const updated = await db.collection(COLLECTIONS.CONVERSATIONS)
+      .findOne({ _id: new ObjectId(req.params.conversationId) });
+
+    const userIds = updated.participants.map((p) => p.user_id);
+    const profiles = await db.collection(COLLECTIONS.PROFILES)
+      .find({ user_id: { $in: userIds } })
+      .toArray();
+    const profileMap = new Map(profiles.map((p) => [p.user_id, formatDocument(p)]));
+
+    const io = req.app.get('io');
+    if (io) {
+      userIds.forEach((uid) => {
+        io.to(`user:${uid}`).emit('conversation-updated', {
+          conversation_id: updated._id.toString(),
+        });
+      });
+      io.to(`user:${userId}`).emit('conversation-created', {
+        conversation_id: updated._id.toString(),
+      });
+    }
+
+    res.json({
+      ...formatDocument(updated),
+      participants: updated.participants.map((p) => ({
+        ...p,
+        profile: profileMap.get(p.user_id) || null,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove a user from a group conversation
+router.delete('/:conversationId/participants/:userId', authenticate, async (req, res) => {
+  try {
+    const db = getDb();
+
+    const conversation = await db.collection(COLLECTIONS.CONVERSATIONS)
+      .findOne({ _id: new ObjectId(req.params.conversationId) });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    if (!conversation.is_group) {
+      return res.status(400).json({ error: 'Only group conversations support participants' });
+    }
+
+    const isParticipant = conversation.participants?.some((p) => p.user_id === req.userId);
+    if (!isParticipant) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const now = new Date().toISOString();
+    await db.collection(COLLECTIONS.CONVERSATIONS).updateOne(
+      { _id: new ObjectId(req.params.conversationId) },
+      {
+        $pull: { participants: { user_id: req.params.userId } },
+        $set: { updated_at: now },
+      }
+    );
+
+    const updated = await db.collection(COLLECTIONS.CONVERSATIONS)
+      .findOne({ _id: new ObjectId(req.params.conversationId) });
+
+    const userIds = updated.participants.map((p) => p.user_id);
+    const profiles = await db.collection(COLLECTIONS.PROFILES)
+      .find({ user_id: { $in: userIds } })
+      .toArray();
+    const profileMap = new Map(profiles.map((p) => [p.user_id, formatDocument(p)]));
+
+    const io = req.app.get('io');
+    if (io) {
+      userIds.forEach((uid) => {
+        io.to(`user:${uid}`).emit('conversation-updated', {
+          conversation_id: updated._id.toString(),
+        });
+      });
+      io.to(`user:${req.params.userId}`).emit('conversation-deleted', {
+        conversation_id: updated._id.toString(),
+      });
+    }
+
+    res.json({
+      ...formatDocument(updated),
+      participants: updated.participants.map((p) => ({
+        ...p,
+        profile: profileMap.get(p.user_id) || null,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 // Block a user in a direct conversation
 router.post('/:conversationId/block', authenticate, async (req, res) => {
   try {
@@ -562,7 +704,6 @@ router.patch('/:conversationId/read', authenticate, async (req, res) => {
       {
         $set: {
           'participants.$.last_read_at': now,
-          updated_at: now,
         },
       }
     );

@@ -23,6 +23,15 @@ export function ChatProvider({ children }) {
     const [messages, setMessages] = useState([]);
     const [typingUsers, setTypingUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const CONVERSATIONS_CACHE_KEY = "connectly.conversations.v1";
+
+    const sortConversations = useCallback((list) => {
+        return [...list].sort((a, b) => {
+            const aTime = a?.last_message?.created_at || a?.updated_at || a?.created_at || 0;
+            const bTime = b?.last_message?.created_at || b?.updated_at || b?.created_at || 0;
+            return new Date(bTime).getTime() - new Date(aTime).getTime();
+        });
+    }, []);
 
     // Fetch conversations
     const fetchConversations = useCallback(async () => {
@@ -33,13 +42,39 @@ export function ChatProvider({ children }) {
 
         try {
             const data = await conversationsApi.getAll();
-            setConversations(data);
+            setConversations(sortConversations(data));
             setLoading(false);
         } catch (error) {
             console.error("Error in fetchConversations:", error);
             setLoading(false);
         }
-    }, [user]);
+    }, [user, sortConversations]);
+
+    // Hydrate conversations from cache for faster first paint
+    useEffect(() => {
+        try {
+            const cached = localStorage.getItem(CONVERSATIONS_CACHE_KEY);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setConversations(sortConversations(parsed));
+                }
+            }
+        } catch (error) {
+            console.warn("Failed to read conversations cache:", error);
+        }
+        // Only run once on mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Persist conversations cache
+    useEffect(() => {
+        try {
+            localStorage.setItem(CONVERSATIONS_CACHE_KEY, JSON.stringify(conversations));
+        } catch (error) {
+            console.warn("Failed to write conversations cache:", error);
+        }
+    }, [conversations]);
 
     const refreshConversations = useCallback(async () => {
         await fetchConversations();
@@ -90,6 +125,20 @@ export function ChatProvider({ children }) {
                     if (prev.find((m) => m.id === message.id)) {
                         return prev;
                     }
+                    if (message.sender_id === user.id) {
+                        const matchIndex = prev.findIndex(
+                            (m) =>
+                                m._optimistic &&
+                                m.sender_id === user.id &&
+                                m.content === message.content &&
+                                Math.abs(new Date(message.created_at).getTime() - new Date(m.created_at).getTime()) < 8000
+                        );
+                        if (matchIndex !== -1) {
+                            const next = [...prev];
+                            next[matchIndex] = { ...message, client_id: next[matchIndex].client_id };
+                            return next;
+                        }
+                    }
                     const updated = [...prev, message];
                     return updated.sort((a, b) =>
                         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -115,26 +164,20 @@ export function ChatProvider({ children }) {
                             setConversations(prev => {
                                 // Double check it hasn't been added in the meantime
                                 if (prev.find(c => c.id === newConv.id)) return prev;
-                                return [newConv, ...prev];
+                                return sortConversations([newConv, ...prev]);
                             });
                         }
                     }).catch(console.error);
                     return prevConversations;
                 }
 
-                // Existing conversation - update and move to top
+                // Existing conversation - update and move to top on any new message
                 const updatedConversations = [...prevConversations];
                 const conversation = updatedConversations[index];
                 updatedConversations.splice(index, 1);
 
-                // Determine if we should increment unread count
-                // Increment if:
-                // 1. It's NOT the active conv
-                // OR
-                // 2. It IS the active conv but the window/tab isn't focused (optional, but good UX - skipping for now to keep simple)
-                // AND
-                // 3. The sender is NOT the current user
-                const isUnread = (!activeConversation || activeConversation.id !== message.conversation_id) && message.sender_id !== user.id;
+                const isIncoming = message.sender_id !== user.id;
+                const isUnread = (!activeConversation || activeConversation.id !== message.conversation_id) && isIncoming;
 
                 const updatedConv = {
                     ...conversation,
@@ -143,8 +186,7 @@ export function ChatProvider({ children }) {
                     updated_at: message.created_at
                 };
 
-                updatedConversations.unshift(updatedConv);
-                return updatedConversations;
+                return sortConversations([updatedConv, ...updatedConversations]);
             });
         });
 
@@ -201,13 +243,17 @@ export function ChatProvider({ children }) {
             if (!data?.conversation_id) return;
             try {
                 const newConv = await conversationsApi.getById(data.conversation_id);
-                if (!newConv) return;
+                if (!newConv) {
+                    await fetchConversations();
+                    return;
+                }
                 setConversations((prev) => {
                     if (prev.find((c) => c.id === newConv.id)) return prev;
-                    return [newConv, ...prev];
+                    return sortConversations([newConv, ...prev]);
                 });
             } catch (error) {
                 console.error("Error handling conversation-created:", error);
+                await fetchConversations();
             }
         });
 
@@ -218,10 +264,10 @@ export function ChatProvider({ children }) {
                 if (!updated) return;
                 setConversations((prev) => {
                     const index = prev.findIndex((c) => c.id === updated.id);
-                    if (index === -1) return [updated, ...prev];
+                    if (index === -1) return sortConversations([updated, ...prev]);
                     const next = [...prev];
                     next[index] = { ...next[index], ...updated };
-                    return next;
+                    return sortConversations(next);
                 });
                 if (activeConversation?.id === updated.id) {
                     _setActiveConversation((prev) => (prev ? { ...prev, ...updated } : prev));
@@ -296,6 +342,9 @@ export function ChatProvider({ children }) {
 
     const sendMessage = async (content) => {
         if (!user || !activeConversation || !content.trim()) return;
+        if (!activeConversation.participants?.some((p) => p.user_id === user.id)) {
+            return;
+        }
         if (!activeConversation.is_group) {
             const requestStatus = activeConversation.request_status ?? "active";
             if (requestStatus !== "active") {
@@ -306,14 +355,55 @@ export function ChatProvider({ children }) {
             }
         }
 
+        const now = new Date().toISOString();
+        const tempId = `temp-${now}-${Math.random().toString(36).slice(2, 8)}`;
+        const optimisticMessage = {
+            id: tempId,
+            client_id: tempId,
+            conversation_id: activeConversation.id,
+            sender_id: user.id,
+            content: content.trim(),
+            message_type: "text",
+            status: "sent",
+            created_at: now,
+            updated_at: now,
+            _optimistic: true,
+        };
+
+        setMessages((prev) => {
+            if (prev.find((m) => m.id === tempId)) return prev;
+            return [...prev, optimisticMessage].sort((a, b) =>
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+        });
+
+        setConversations((prevConversations) => {
+            const index = prevConversations.findIndex((c) => c.id === activeConversation.id);
+            if (index === -1) return prevConversations;
+
+            const updatedConversations = [...prevConversations];
+            const conversation = updatedConversations[index];
+            updatedConversations.splice(index, 1);
+
+            const updatedConv = {
+                ...conversation,
+                last_message: optimisticMessage,
+                updated_at: now,
+            };
+
+            return sortConversations([updatedConv, ...updatedConversations]);
+        });
+
         try {
             const newMessage = await messagesApi.create(activeConversation.id, content);
 
             // Add message to local state immediately if not already added via socket
             if (newMessage) {
                 setMessages((prev) => {
-                    if (prev.find((m) => m.id === newMessage.id)) return prev;
-                    return [...prev, newMessage].sort((a, b) =>
+                    const withoutOptimistic = prev.filter((m) => m.id !== tempId);
+                    if (withoutOptimistic.find((m) => m.id === newMessage.id)) return withoutOptimistic;
+                    const merged = { ...newMessage, client_id: tempId };
+                    return [...withoutOptimistic, merged].sort((a, b) =>
                         new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
                     );
                 });
@@ -333,8 +423,7 @@ export function ChatProvider({ children }) {
                         updated_at: newMessage.created_at
                     };
 
-                    updatedConversations.unshift(updatedConv);
-                    return updatedConversations;
+                    return sortConversations([updatedConv, ...updatedConversations]);
                 });
             }
 
@@ -342,6 +431,20 @@ export function ChatProvider({ children }) {
             await setTyping(false);
         } catch (error) {
             console.error("Error in sendMessage:", error);
+            setMessages((prev) => prev.filter((m) => m.id !== tempId));
+            setConversations((prevConversations) => {
+                const index = prevConversations.findIndex(c => c.id === activeConversation.id);
+                if (index === -1) return prevConversations;
+                const updatedConversations = [...prevConversations];
+                const conversation = updatedConversations[index];
+                if (conversation.last_message?.id === tempId) {
+                    updatedConversations[index] = {
+                        ...conversation,
+                        last_message: null,
+                    };
+                }
+                return updatedConversations;
+            });
         }
     };
 
@@ -479,6 +582,42 @@ export function ChatProvider({ children }) {
         }
     };
 
+    const addGroupParticipant = async (conversationId, userId) => {
+        if (!user) return null;
+
+        try {
+            const updated = await conversationsApi.addParticipant(conversationId, userId);
+            await fetchConversations();
+            if (activeConversation?.id === conversationId) {
+                _setActiveConversation((prev) =>
+                    prev ? { ...prev, participants: updated?.participants || prev.participants } : prev
+                );
+            }
+            return updated;
+        } catch (error) {
+            console.error("Error adding participant:", error);
+            return null;
+        }
+    };
+
+    const removeGroupParticipant = async (conversationId, userId) => {
+        if (!user) return null;
+
+        try {
+            const updated = await conversationsApi.removeParticipant(conversationId, userId);
+            await fetchConversations();
+            if (activeConversation?.id === conversationId) {
+                _setActiveConversation((prev) =>
+                    prev ? { ...prev, participants: updated?.participants || prev.participants } : prev
+                );
+            }
+            return updated;
+        } catch (error) {
+            console.error("Error removing participant:", error);
+            return null;
+        }
+    };
+
     const blockConversation = async (conversationId) => {
         if (!user) return false;
 
@@ -530,6 +669,8 @@ export function ChatProvider({ children }) {
                 acceptConversationRequest,
                 deleteConversationRequest,
                 deleteConversation,
+                addGroupParticipant,
+                removeGroupParticipant,
                 blockConversation,
                 unblockConversation,
                 setTyping,

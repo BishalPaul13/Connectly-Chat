@@ -12,11 +12,15 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GroupMembersDialog } from "./GroupMembersDialog";
+import { useEffect, useState } from "react";
 
 export function ChatHeader({ conversation, onBack }) {
     const { user } = useAuth();
     const { deleteConversation, blockConversation, unblockConversation } = useChat();
     const { toast } = useToast();
+    const [showGroupMembers, setShowGroupMembers] = useState(false);
+    const [shouldMarquee, setShouldMarquee] = useState(false);
 
     // Get the other participant(s) info
     const otherParticipants = conversation.participants.filter(
@@ -87,8 +91,14 @@ export function ChatHeader({ conversation, onBack }) {
         }
     };
 
+    useEffect(() => {
+        setShouldMarquee(true);
+        const t = setTimeout(() => setShouldMarquee(false), 1200);
+        return () => clearTimeout(t);
+    }, [conversation?.id]);
+
     return (
-        <div className="sticky top-0 z-20 flex items-center gap-3 px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.5rem)] bg-chat-header border-b shadow-sm">
+        <div className="sticky top-0 z-20 flex items-center gap-2 sm:gap-3 px-4 py-2 sm:py-3 pt-[calc(env(safe-area-inset-top)+0.5rem)] bg-chat-header border-b shadow-sm">
             {onBack && (
                 <Button
                     variant="ghost"
@@ -107,25 +117,29 @@ export function ChatHeader({ conversation, onBack }) {
                 isOnline={!conversation.is_group ? isOnline : undefined}
             />
 
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 pr-1">
                 <h2 className="font-semibold text-foreground truncate">{displayName}</h2>
-                <p className="text-xs text-muted-foreground truncate">{statusText}</p>
+                <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight overflow-hidden">
+                    <span className={shouldMarquee ? "status-marquee" : ""}>
+                        {statusText}
+                    </span>
+                </p>
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-none">
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="text-muted-foreground hover:text-foreground rounded-full"
+                    className="text-muted-foreground hover:text-foreground rounded-full h-9 w-9 sm:h-10 sm:w-10"
                 >
-                    <Video className="w-5 h-5" />
+                    <Video className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="text-muted-foreground hover:text-foreground rounded-full"
+                    className="text-muted-foreground hover:text-foreground rounded-full h-9 w-9 sm:h-10 sm:w-10"
                 >
-                    <Phone className="w-5 h-5" />
+                    <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -138,6 +152,17 @@ export function ChatHeader({ conversation, onBack }) {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44">
+                        {conversation.is_group && (
+                            <>
+                                <DropdownMenuItem
+                                    onClick={() => setShowGroupMembers(true)}
+                                    className="cursor-pointer"
+                                >
+                                    Manage members
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                            </>
+                        )}
                         <DropdownMenuItem onClick={handleDelete} className="cursor-pointer">
                             Delete chat
                         </DropdownMenuItem>
@@ -164,6 +189,14 @@ export function ChatHeader({ conversation, onBack }) {
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
+
+            {conversation.is_group && (
+                <GroupMembersDialog
+                    open={showGroupMembers}
+                    onOpenChange={setShowGroupMembers}
+                    conversation={conversation}
+                />
+            )}
         </div>
     );
 }

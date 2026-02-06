@@ -14,9 +14,16 @@ export function MessageList({ messages, currentUserId, conversation, typingUsers
     const bottomRef = useRef(null);
     const containerRef = useRef(null);
     const prevCountRef = useRef(0);
+    const prevConversationIdRef = useRef(null);
 
     // Auto-scroll to bottom on new messages (avoid scroll bounce)
     useEffect(() => {
+        const convoChanged = prevConversationIdRef.current !== conversation?.id;
+        if (convoChanged) {
+            prevConversationIdRef.current = conversation?.id || null;
+            prevCountRef.current = 0;
+        }
+
         if (messages.length === 0) {
             prevCountRef.current = 0;
             return;
@@ -28,12 +35,12 @@ export function MessageList({ messages, currentUserId, conversation, typingUsers
             : true;
 
         const isInitialLoad = prevCountRef.current === 0;
-        if (isNearBottom || isInitialLoad) {
-            bottomRef.current?.scrollIntoView({ behavior: isInitialLoad ? "auto" : "smooth" });
+        if (convoChanged || isNearBottom || isInitialLoad) {
+            bottomRef.current?.scrollIntoView({ behavior: "auto" });
         }
 
         prevCountRef.current = messages.length;
-    }, [messages.length, typingUsers.length]);
+    }, [messages.length, typingUsers.length, conversation?.id]);
 
     // Group messages by date
     const messageGroups = [];
@@ -84,7 +91,7 @@ export function MessageList({ messages, currentUserId, conversation, typingUsers
 
                                 return (
                                     <MessageBubble
-                                        key={message.id}
+                                        key={message.client_id || message.id}
                                         message={message}
                                         isOwn={isOwn}
                                         senderProfile={senderProfile}

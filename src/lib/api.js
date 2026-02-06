@@ -162,6 +162,19 @@ export const conversationsApi = {
             method: 'POST',
         });
     },
+
+    addParticipant: async (conversationId, userId) => {
+        return apiRequest(`/conversations/${conversationId}/participants`, {
+            method: 'POST',
+            body: JSON.stringify({ userId }),
+        });
+    },
+
+    removeParticipant: async (conversationId, userId) => {
+        return apiRequest(`/conversations/${conversationId}/participants/${userId}`, {
+            method: 'DELETE',
+        });
+    },
 };
 
 // Messages API

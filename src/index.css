@@ -239,3 +239,21 @@
   .dark .status-delivered { color: #9ca3af; }
   .dark .status-read { color: #38bdf8; }
 }
+
+@layer utilities {
+  .status-marquee {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    .status-marquee {
+      animation: status-marquee 2.6s linear 1;
+    }
+
+    @keyframes status-marquee {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+  }
+}
