@@ -2,6 +2,7 @@
 export const COLLECTIONS = {
   USERS: 'users',
   PROFILES: 'profiles',
+  SIGNUP_OTPS: 'signup_otps',
   CONVERSATIONS: 'conversations',
   MESSAGES: 'messages',
   TYPING_INDICATORS: 'typing_indicators',

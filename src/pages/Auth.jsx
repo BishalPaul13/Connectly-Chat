@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Auth() {
-    const { user, loading, signIn, signUp } = useAuth();
+    const { user, loading, signIn, requestSignupOtp, verifySignupOtp } = useAuth();
     const { theme, setTheme } = useTheme();
     const previousThemeRef = useRef(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +28,8 @@ export default function Auth() {
     const [registerPassword, setRegisterPassword] = useState("");
     const [registerUsername, setRegisterUsername] = useState("");
     const [registerFullName, setRegisterFullName] = useState("");
+    const [registerOtp, setRegisterOtp] = useState("");
+    const [isOtpSent, setIsOtpSent] = useState(false);
 
     useEffect(() => {
         if (previousThemeRef.current === null) {
@@ -45,6 +47,14 @@ export default function Auth() {
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        if (activeTab !== "register") {
+            setIsOtpSent(false);
+            setRegisterOtp("");
+            setError(null);
+        }
+    }, [activeTab]);
 
     if (loading) {
         return (
@@ -93,15 +103,33 @@ export default function Auth() {
         setIsLoading(true);
 
         try {
-            const { error } = await signUp(
-                registerEmail,
-                registerPassword,
-                registerUsername.trim(),
-                registerFullName.trim() || registerUsername.trim()
-            );
+            const trimmedEmail = registerEmail.trim().toLowerCase();
+            const trimmedUsername = registerUsername.trim();
+            const fullName = registerFullName.trim() || trimmedUsername;
+            let error = null;
+
+            if (!isOtpSent) {
+                ({ error } = await requestSignupOtp(
+                    trimmedEmail,
+                    registerPassword,
+                    trimmedUsername,
+                    fullName
+                ));
+
+                if (!error) {
+                    setIsOtpSent(true);
+                }
+            } else {
+                if (!registerOtp.trim()) {
+                    setError("OTP is required");
+                    return;
+                }
+
+                ({ error } = await verifySignupOtp(trimmedEmail, registerOtp.trim()));
+            }
 
             if (error) {
-                setError(error.message || "Failed to sign up. Username or email might be taken.");
+                setError(error.message || "Unable to complete signup.");
             }
         } catch (err) {
             setError(err.message || "Failed to connect to server. Make sure the backend is running.");
@@ -289,7 +317,7 @@ export default function Auth() {
                                                         value={registerUsername}
                                                         onChange={(e) => setRegisterUsername(e.target.value)}
                                                         required
-                                                        disabled={isLoading}
+                                                        disabled={isLoading || isOtpSent}
                                                     />
                                                 </div>
                                             </div>
@@ -306,7 +334,7 @@ export default function Auth() {
                                                         className="pl-11 h-12 bg-background/50 rounded-2xl border-border/50 focus-visible:ring-primary/20 focus-visible:border-primary transition-all"
                                                         value={registerFullName}
                                                         onChange={(e) => setRegisterFullName(e.target.value)}
-                                                        disabled={isLoading}
+                                                        disabled={isLoading || isOtpSent}
                                                     />
                                                 </div>
                                             </div>
@@ -325,7 +353,7 @@ export default function Auth() {
                                                     value={registerEmail}
                                                     onChange={(e) => setRegisterEmail(e.target.value)}
                                                     required
-                                                    disabled={isLoading}
+                                                    disabled={isLoading || isOtpSent}
                                                 />
                                             </div>
                                         </div>
@@ -343,17 +371,50 @@ export default function Auth() {
                                                     value={registerPassword}
                                                     onChange={(e) => setRegisterPassword(e.target.value)}
                                                     required
-                                                    disabled={isLoading}
+                                                    disabled={isLoading || isOtpSent}
                                                 />
                                             </div>
                                         </div>
+                                        {isOtpSent && (
+                                            <div className="space-y-2">
+                                                <Label htmlFor="register-otp" className="text-foreground/70 ml-1">Email OTP</Label>
+                                                <Input
+                                                    id="register-otp"
+                                                    type="text"
+                                                    placeholder="Enter 6-digit code"
+                                                    className="h-12 bg-background/50 rounded-2xl border-border/50 focus-visible:ring-primary/20 focus-visible:border-primary transition-all tracking-[0.2em] text-center"
+                                                    value={registerOtp}
+                                                    onChange={(e) => setRegisterOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                                                    required
+                                                    disabled={isLoading}
+                                                />
+                                                <p className="text-xs text-muted-foreground ml-1">
+                                                    We sent a verification code to your email. Enter it to complete signup.
+                                                </p>
+                                            </div>
+                                        )}
                                         <Button type="submit" className="w-full h-12 rounded-2xl text-base font-semibold shadow-lg shadow-primary/25 mt-4 hover:scale-[1.01] active:scale-[0.99] transition-all" disabled={isLoading}>
                                             {isLoading ? (
                                                 <Loader2 className="w-5 h-5 animate-spin" />
                                             ) : (
-                                                "Create Account"
+                                                isOtpSent ? "Verify OTP & Create Account" : "Send OTP"
                                             )}
                                         </Button>
+                                        {isOtpSent && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="w-full h-11 rounded-2xl"
+                                                disabled={isLoading}
+                                                onClick={() => {
+                                                    setIsOtpSent(false);
+                                                    setRegisterOtp("");
+                                                    setError(null);
+                                                }}
+                                            >
+                                                Edit signup details
+                                            </Button>
+                                        )}
                                     </form>
                                 </TabsContent>
                             </CardContent>

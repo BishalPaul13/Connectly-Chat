@@ -38,6 +38,7 @@ router.get('/', authenticate, async (req, res) => {
 
     const profiles = await db.collection(COLLECTIONS.PROFILES)
       .find(query)
+      .sort({ created_at: -1 })
       .limit(20)
       .toArray();
 

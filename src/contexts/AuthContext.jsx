@@ -56,15 +56,25 @@ export function AuthProvider({ children }) {
         return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
     }, [user]);
 
-    const signUp = async (email, password, username, fullName) => {
+    const requestSignupOtp = async (email, password, username, fullName) => {
         try {
-            const { data } = await authApi.signUp(email, password, username, fullName);
+            await authApi.requestSignupOtp(email, password, username, fullName);
+            return { error: null };
+        } catch (error) {
+            console.error('Request OTP error:', error);
+            return { error: error };
+        }
+    };
+
+    const verifySignupOtp = async (email, otp) => {
+        try {
+            const { data } = await authApi.verifySignupOtp(email, otp);
             setUser(data.user);
             setProfile(data.profile);
             setSession({ user: data.user, token: data.token });
             return { error: null };
         } catch (error) {
-            console.error('Sign up error:', error);
+            console.error('Verify OTP error:', error);
             return { error: error };
         }
     };
@@ -110,7 +120,8 @@ export function AuthProvider({ children }) {
                 session,
                 profile,
                 loading,
-                signUp,
+                requestSignupOtp,
+                verifySignupOtp,
                 signIn,
                 signOut,
                 updateProfile,

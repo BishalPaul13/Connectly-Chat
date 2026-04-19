@@ -25,11 +25,12 @@ export async function comparePassword(password, hash) {
   return bcrypt.compare(password, hash);
 }
 
-export async function createUser(email, password, username, fullName) {
+export async function createUser(email, password, username, fullName, isPasswordHashed = false) {
   const db = getDb();
+  const normalizedEmail = email.trim().toLowerCase();
   
   // Check if user already exists
-  const existingUser = await db.collection(COLLECTIONS.USERS).findOne({ email });
+  const existingUser = await db.collection(COLLECTIONS.USERS).findOne({ email: normalizedEmail });
   if (existingUser) {
     throw new Error('User already exists');
   }
@@ -39,12 +40,12 @@ export async function createUser(email, password, username, fullName) {
     throw new Error('Username already taken');
   }
 
-  const hashedPassword = await hashPassword(password);
+  const hashedPassword = isPasswordHashed ? password : await hashPassword(password);
   const now = new Date().toISOString();
 
   // Create user
   const userResult = await db.collection(COLLECTIONS.USERS).insertOne({
-    email,
+    email: normalizedEmail,
     password: hashedPassword,
     created_at: now,
     updated_at: now,
@@ -65,13 +66,14 @@ export async function createUser(email, password, username, fullName) {
     updated_at: now,
   });
 
-  return { id: userId, email };
+  return { id: userId, email: normalizedEmail };
 }
 
 export async function authenticateUser(email, password) {
   const db = getDb();
+  const normalizedEmail = email.trim().toLowerCase();
   
-  const user = await db.collection(COLLECTIONS.USERS).findOne({ email });
+  const user = await db.collection(COLLECTIONS.USERS).findOne({ email: normalizedEmail });
   if (!user) {
     throw new Error('Invalid credentials');
   }
@@ -97,7 +99,7 @@ export async function getUserById(userId) {
 
 export async function getUserByEmail(email) {
   const db = getDb();
-  const user = await db.collection(COLLECTIONS.USERS).findOne({ email });
+  const user = await db.collection(COLLECTIONS.USERS).findOne({ email: email.trim().toLowerCase() });
   return formatDocument(user);
 }
 

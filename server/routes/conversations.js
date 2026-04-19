@@ -150,9 +150,6 @@ router.get('/:conversationId', authenticate, async (req, res) => {
     if (!isParticipant) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    if (conversation.created_by !== req.userId) {
-      return res.status(403).json({ error: 'Only the group admin can add members' });
-    }
     if (conversation.deleted_for && conversation.deleted_for.includes(req.userId)) {
       return res.status(404).json({ error: 'Conversation not found' });
     }
@@ -336,9 +333,6 @@ router.post('/:conversationId/accept', authenticate, async (req, res) => {
     const isParticipant = conversation.participants?.some((p) => p.user_id === req.userId);
     if (!isParticipant) {
       return res.status(403).json({ error: 'Forbidden' });
-    }
-    if (conversation.created_by !== req.userId) {
-      return res.status(403).json({ error: 'Only the group admin can remove members' });
     }
 
     if (conversation.is_group || conversation.request_status !== 'pending') {
