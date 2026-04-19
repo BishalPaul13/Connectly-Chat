@@ -27,14 +27,14 @@ const Navbar = () => {
                     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg group-hover:scale-105 transition-transform">
                         <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
                     </div>
-                    <span className="font-bold text-lg sm:text-xl tracking-tight hidden xs:block">Connectly</span>
+                    <span className="font-bold text-lg sm:text-xl tracking-tight hidden sm:block">Connectly</span>
                 </Link>
 
                 <div className="flex items-center gap-3 sm:gap-4">
                     <Button asChild variant="ghost" className="hidden sm:inline-flex rounded-full text-muted-foreground hover:text-foreground">
                         <Link to="/auth">Sign In</Link>
                     </Button>
-                    <Button asChild className="h-9 sm:h-10 px-5 sm:px-6 rounded-full shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all text-xs sm:text-sm font-bold tracking-wide">
+                    <Button asChild className="h-9 sm:h-10 px-4 sm:px-6 rounded-full shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all text-xs sm:text-sm font-bold tracking-wide">
                         <Link to="/auth">Get Started</Link>
                     </Button>
                 </div>

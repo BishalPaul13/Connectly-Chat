@@ -24,14 +24,6 @@ const FeatureCard = ({ icon: Icon, title, description, delay }) => (
 const Index = () => {
     const { user, loading } = useAuth();
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
     // Redirect logged-in users directly to chat
     if (user) {
         return <Navigate to="/chat" replace />;
@@ -40,12 +32,14 @@ const Index = () => {
     return (
         <div className="min-h-screen bg-background relative flex flex-col selection:bg-primary/30">
             {/* Dynamic Background Blobs */}
-            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/20 blur-[120px] pointer-events-none opacity-50 dark:opacity-20" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/20 blur-[120px] pointer-events-none opacity-50 dark:opacity-20" />
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/20 blur-[120px] opacity-50 dark:opacity-20" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-blue-500/20 blur-[120px] opacity-50 dark:opacity-20" />
+            </div>
             
             <Navbar />
-            <main className="flex-1 flex flex-col items-center justify-center px-4 sm:px-10 lg:px-12 mt-20 md:mt-24 relative z-10 w-full overflow-x-hidden">
-                <div className="max-w-6xl mx-auto w-full pt-12 pb-16 md:py-24 flex flex-col lg:flex-row items-center gap-10 md:gap-16 lg:gap-8">
+            <main className="flex-1 flex flex-col items-center px-6 sm:px-10 lg:px-12 pt-24 md:pt-32 relative z-10 w-full overflow-x-hidden">
+                <div className="max-w-6xl mx-auto w-full pb-16 md:py-24 flex flex-col lg:flex-row items-center gap-10 md:gap-16 lg:gap-8">
                     
                     {/* Hero Text */}
                     <div className="flex-1 text-center lg:text-left flex flex-col items-center lg:items-start">
@@ -84,12 +78,12 @@ const Index = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.3 }}
-                            className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 w-full sm:w-auto"
+                            className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 sm:gap-4 w-full max-w-xs sm:max-w-none mx-auto sm:mx-0"
                         >
-                            <Button asChild size="lg" className="rounded-full px-8 text-sm sm:text-base h-12 sm:h-14 shadow-lg shadow-primary/25 w-full sm:w-auto hover:scale-105 transition-transform">
+                            <Button asChild size="lg" className="rounded-full px-8 text-sm sm:text-base h-12 sm:h-14 shadow-lg shadow-primary/25 hover:scale-105 transition-transform">
                                 <Link to="/auth">Start Chatting</Link>
                             </Button>
-                            <Button asChild variant="outline" size="lg" className="rounded-full px-8 text-sm sm:text-base h-12 sm:h-14 w-full sm:w-auto bg-background/50 backdrop-blur-md hover:bg-background/80 transition-colors">
+                            <Button asChild variant="outline" size="lg" className="rounded-full px-8 text-sm sm:text-base h-12 sm:h-14 bg-background/50 backdrop-blur-md hover:bg-background/80 transition-colors">
                                 <a href="#features">Explore Features</a>
                             </Button>
                         </motion.div>
