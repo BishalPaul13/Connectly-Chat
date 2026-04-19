@@ -22,7 +22,6 @@ export function ChatHeader({ conversation, onBack }) {
     const [showGroupMembers, setShowGroupMembers] = useState(false);
     const [shouldMarquee, setShouldMarquee] = useState(false);
 
-    // Get the other participant(s) info
     const otherParticipants = conversation.participants.filter(
         (p) => p.user_id !== user?.id
     );
@@ -98,46 +97,48 @@ export function ChatHeader({ conversation, onBack }) {
     }, [conversation?.id]);
 
     return (
-        <div className="sticky top-0 z-20 flex items-center gap-2 sm:gap-3 px-4 py-2 sm:py-3 pt-[calc(env(safe-area-inset-top)+0.5rem)] bg-chat-header border-b shadow-sm">
+        <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-border/70 bg-chat-header/90 px-4 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] shadow-sm backdrop-blur-2xl">
             {onBack && (
                 <Button
                     variant="ghost"
                     size="icon"
                     onClick={onBack}
-                    className="md:hidden -ml-2 text-muted-foreground hover:text-foreground"
+                    className="md:hidden -ml-2 rounded-full bg-background/60 text-muted-foreground shadow-sm hover:bg-background hover:text-foreground"
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </Button>
             )}
 
-            <Avatar
-                src={avatarUrl}
-                name={displayName}
-                size="md"
-                isOnline={!conversation.is_group ? isOnline : undefined}
-            />
+            <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[1.35rem] border border-white/50 bg-white/55 px-3 py-2 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
+                <Avatar
+                    src={avatarUrl}
+                    name={displayName}
+                    size="md"
+                    isOnline={!conversation.is_group ? isOnline : undefined}
+                />
 
-            <div className="flex-1 min-w-0 pr-1">
-                <h2 className="font-semibold text-foreground truncate">{displayName}</h2>
-                <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight overflow-hidden">
-                    <span className={shouldMarquee ? "status-marquee" : ""}>
-                        {statusText}
-                    </span>
-                </p>
+                <div className="min-w-0 flex-1 pr-1">
+                    <h2 className="truncate text-sm font-extrabold tracking-tight text-foreground sm:text-base">{displayName}</h2>
+                    <p className="overflow-hidden text-[11px] leading-tight text-muted-foreground sm:text-xs">
+                        <span className={shouldMarquee ? "status-marquee" : ""}>
+                            {statusText}
+                        </span>
+                    </p>
+                </div>
             </div>
 
-            <div className="flex items-center gap-1 flex-none">
+            <div className="flex flex-none items-center gap-1">
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="text-muted-foreground hover:text-foreground rounded-full h-9 w-9 sm:h-10 sm:w-10"
+                    className="h-9 w-9 rounded-full bg-background/60 text-muted-foreground shadow-sm hover:bg-background hover:text-foreground sm:h-10 sm:w-10"
                 >
                     <Video className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="text-muted-foreground hover:text-foreground rounded-full h-9 w-9 sm:h-10 sm:w-10"
+                    className="h-9 w-9 rounded-full bg-background/60 text-muted-foreground shadow-sm hover:bg-background hover:text-foreground sm:h-10 sm:w-10"
                 >
                     <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
@@ -146,7 +147,7 @@ export function ChatHeader({ conversation, onBack }) {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="text-muted-foreground hover:text-foreground rounded-full"
+                            className="rounded-full bg-background/60 text-muted-foreground shadow-sm hover:bg-background hover:text-foreground"
                         >
                             <MoreVertical className="w-5 h-5" />
                         </Button>

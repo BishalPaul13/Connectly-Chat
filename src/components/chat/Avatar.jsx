@@ -28,7 +28,7 @@ function getColorFromName(name) {
     const colors = [
         "bg-primary",
         "bg-blue-500",
-        "bg-purple-500",
+        "bg-cyan-500",
         "bg-pink-500",
         "bg-orange-500",
         "bg-teal-500",
@@ -48,14 +48,14 @@ export function Avatar({ src, name, size = "md", isOnline, className }) {
                     src={src}
                     alt={name || "Avatar"}
                     className={cn(
-                        "rounded-full object-cover ring-2 ring-background",
+                        "rounded-full object-cover ring-2 ring-background/80 shadow-sm",
                         sizeClasses[size]
                     )}
                 />
             ) : (
                 <div
                     className={cn(
-                        "rounded-full flex items-center justify-center font-medium text-primary-foreground ring-2 ring-background",
+                        "flex items-center justify-center rounded-full font-bold text-primary-foreground ring-2 ring-background/80 shadow-sm",
                         sizeClasses[size],
                         getColorFromName(name)
                     )}

@@ -11,13 +11,16 @@ import { Server } from 'socket.io';
 
 const app = express();
 const httpServer = createServer(app);
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:8080",
+  "http://localhost:8081",
+  process.env.CLIENT_URL
+].filter(Boolean);
+
 const io = new Server(httpServer, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:8080",
-      process.env.CLIENT_URL
-    ].filter(Boolean),
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -26,19 +29,8 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 3001;
 
-// Middleware - Allow multiple origins for development
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:8080',
-  process.env.CLIENT_URL,
-].filter(Boolean);
-
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "http://localhost:8080",
-    process.env.CLIENT_URL
-  ].filter(Boolean),
+  origin: allowedOrigins,
   credentials: true,
 }));
 

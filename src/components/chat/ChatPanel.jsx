@@ -18,7 +18,6 @@ export function ChatPanel({ onBack }) {
         markAsRead,
         acceptConversationRequest,
         deleteConversationRequest,
-        deleteConversation,
     } = useChat();
 
     useEffect(() => {
@@ -29,13 +28,13 @@ export function ChatPanel({ onBack }) {
 
     if (!activeConversation) {
         return (
-            <div className="flex-1 flex items-center justify-center bg-chat-bg">
-                <div className="text-center px-4">
-                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                        <MessageSquare className="w-10 h-10 text-muted-foreground" />
+            <div className="chat-pattern flex flex-1 items-center justify-center">
+                <div className="mx-4 max-w-md rounded-[2rem] border border-white/60 bg-white/70 px-8 py-10 text-center shadow-lg backdrop-blur-2xl dark:border-white/10 dark:bg-white/5">
+                    <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-[1.75rem] bg-primary/10 shadow-sm">
+                        <MessageSquare className="h-10 w-10 text-primary" />
                     </div>
-                    <h2 className="text-xl font-semibold text-foreground mb-2">Welcome to ChatApp</h2>
-                    <p className="text-muted-foreground max-w-sm">
+                    <h2 className="mb-2 text-2xl font-extrabold tracking-tight text-foreground">Welcome to Connectly</h2>
+                    <p className="max-w-sm text-sm leading-6 text-muted-foreground">
                         Select a conversation from the sidebar or start a new chat to begin messaging
                     </p>
                 </div>
@@ -65,7 +64,7 @@ export function ChatPanel({ onBack }) {
             <ChatHeader conversation={activeConversation} onBack={onBack} />
 
             {isPending && (
-                <div className="px-4 py-3 bg-muted/60 border-b">
+                <div className="border-b border-border/70 bg-card/70 px-4 py-3 backdrop-blur-xl">
                     <div className="flex items-center justify-between gap-3">
                         <div className="text-sm text-foreground">
                             {isRequester
@@ -76,6 +75,7 @@ export function ChatPanel({ onBack }) {
                             <div className="flex items-center gap-2">
                                 <Button
                                     size="sm"
+                                    className="rounded-xl"
                                     onClick={() => acceptConversationRequest(activeConversation.id)}
                                 >
                                     Accept
@@ -83,6 +83,7 @@ export function ChatPanel({ onBack }) {
                                 <Button
                                     size="sm"
                                     variant="ghost"
+                                    className="rounded-xl"
                                     onClick={() => deleteConversationRequest(activeConversation.id)}
                                 >
                                     Delete request
@@ -94,7 +95,7 @@ export function ChatPanel({ onBack }) {
             )}
 
             {(blockedByMe || blockedMe) && (
-                <div className="px-4 py-3 bg-muted/60 border-b">
+                <div className="border-b border-border/70 bg-card/70 px-4 py-3 backdrop-blur-xl">
                     <div className="text-sm text-foreground">
                         {blockedByMe
                             ? "You blocked this user. Messaging is disabled."

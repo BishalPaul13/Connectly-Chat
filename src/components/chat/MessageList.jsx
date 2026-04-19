@@ -16,7 +16,6 @@ export function MessageList({ messages, currentUserId, conversation, typingUsers
     const prevCountRef = useRef(0);
     const prevConversationIdRef = useRef(null);
 
-    // Auto-scroll to bottom on new messages (avoid scroll bounce)
     useEffect(() => {
         const convoChanged = prevConversationIdRef.current !== conversation?.id;
         if (convoChanged) {
@@ -36,13 +35,14 @@ export function MessageList({ messages, currentUserId, conversation, typingUsers
 
         const isInitialLoad = prevCountRef.current === 0;
         if (convoChanged || isNearBottom || isInitialLoad) {
-            bottomRef.current?.scrollIntoView({ behavior: "auto" });
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
         }
 
         prevCountRef.current = messages.length;
     }, [messages.length, typingUsers.length, conversation?.id]);
 
-    // Group messages by date
     const messageGroups = [];
     let currentDate = "";
 
@@ -63,29 +63,27 @@ export function MessageList({ messages, currentUserId, conversation, typingUsers
     return (
         <div
             ref={containerRef}
-            className="flex-1 overflow-y-auto chat-pattern scrollbar-thin"
+            className="flex-1 overflow-y-auto chat-pattern scrollbar-thin overscroll-contain"
         >
-            <div className="py-4 min-h-full flex flex-col justify-end">
+            <div className="flex min-h-full flex-col justify-end px-2 py-6 sm:px-4">
                 {messageGroups.length === 0 ? (
-                    <div className="flex-1 flex items-center justify-center">
-                        <div className="text-center text-muted-foreground px-4">
-                            <p className="text-lg font-medium">No messages yet</p>
-                            <p className="text-sm mt-1">Start the conversation by sending a message</p>
+                    <div className="flex flex-1 items-center justify-center">
+                        <div className="rounded-[1.75rem] border border-white/60 bg-white/65 px-6 py-8 text-center text-muted-foreground shadow-md backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
+                            <p className="text-lg font-bold text-foreground">No messages yet</p>
+                            <p className="mt-1 text-sm">Start the conversation by sending a message</p>
                         </div>
                     </div>
                 ) : (
                     messageGroups.map((group) => (
                         <div key={group.date}>
-                            <div className="flex justify-center my-4">
-                                <span className="px-3 py-1 bg-muted/80 rounded-full text-xs text-muted-foreground shadow-sm">
+                            <div className="my-5 flex justify-center">
+                                <span className="rounded-full border border-white/60 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
                                     {formatDateSeparator(group.date)}
                                 </span>
                             </div>
                             {group.messages.map((message, messageIndex) => {
                                 const isOwn = message.sender_id === currentUserId;
                                 const senderProfile = getProfile(message.sender_id);
-
-                                // Show avatar for first message in a sequence from same sender
                                 const prevMessage = messageIndex > 0 ? group.messages[messageIndex - 1] : null;
                                 const showAvatar = !prevMessage || prevMessage.sender_id !== message.sender_id;
 

@@ -45,43 +45,47 @@ export function ConversationItem({ conversation, isActive, onClick }) {
 
     return (
         <button
+            type="button"
             onClick={onClick}
             className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left",
-                isActive && "bg-muted"
+                "w-full rounded-[1.35rem] border border-transparent px-4 py-3 text-left transition-colors duration-200",
+                "hover:border-white/70 hover:bg-white/65 hover:shadow-sm dark:hover:border-white/10 dark:hover:bg-white/5",
+                isActive && "border-primary/20 bg-white/90 shadow-sm dark:bg-white/10 dark:border-primary/30"
             )}
         >
-            <Avatar
-                src={avatarUrl}
-                name={displayName}
-                size="lg"
-                isOnline={!conversation.is_group ? isOnline : undefined}
-            />
+            <div className="flex items-center gap-3">
+                <Avatar
+                    src={avatarUrl}
+                    name={displayName}
+                    size="lg"
+                    isOnline={!conversation.is_group ? isOnline : undefined}
+                />
 
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-foreground truncate">{displayName}</span>
-                    <span className="text-xs text-muted-foreground flex-shrink-0">{lastMessageTime}</span>
-                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-extrabold tracking-tight text-foreground">{displayName}</span>
+                        <span className="flex-shrink-0 text-[11px] font-medium text-muted-foreground">{lastMessageTime}</span>
+                    </div>
 
-                <div className="flex items-center gap-1 mt-0.5">
-                    {isOwnMessage && lastMessage && (
-                        <span className="flex-shrink-0">
-                            {lastMessage.status === "read" ? (
-                                <CheckCheck className="w-4 h-4 status-read" />
-                            ) : lastMessage.status === "delivered" ? (
-                                <CheckCheck className="w-4 h-4 status-delivered" />
-                            ) : (
-                                <Check className="w-4 h-4 status-sent" />
-                            )}
-                        </span>
-                    )}
-                    <p className="text-sm text-muted-foreground truncate flex-1">{previewText}</p>
-                    {conversation.unread_count > 0 && (
-                        <span className="flex-shrink-0 min-w-[20px] h-5 px-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-full flex items-center justify-center">
-                            {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
-                        </span>
-                    )}
+                    <div className="mt-1 flex items-center gap-1">
+                        {isOwnMessage && lastMessage && (
+                            <span className="flex-shrink-0">
+                                {lastMessage.status === "read" ? (
+                                    <CheckCheck className="w-4 h-4 status-read" />
+                                ) : lastMessage.status === "delivered" ? (
+                                    <CheckCheck className="w-4 h-4 status-delivered" />
+                                ) : (
+                                    <Check className="w-4 h-4 status-sent" />
+                                )}
+                            </span>
+                        )}
+                        <p className="flex-1 truncate text-sm text-muted-foreground">{previewText}</p>
+                        {conversation.unread_count > 0 && (
+                            <span className="flex h-5 min-w-[20px] flex-shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground shadow-sm">
+                                {conversation.unread_count > 99 ? "99+" : conversation.unread_count}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
         </button>

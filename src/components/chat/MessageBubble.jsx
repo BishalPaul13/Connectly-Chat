@@ -31,7 +31,7 @@ export function MessageBubble({ message, isOwn, senderProfile, showAvatar = true
     return (
         <div
             className={cn(
-                "flex gap-2 px-4 py-1 message-enter",
+                "message-enter flex gap-2 px-2 py-1.5 sm:px-3",
                 isOwn ? "justify-end" : "justify-start"
             )}
         >
@@ -46,25 +46,25 @@ export function MessageBubble({ message, isOwn, senderProfile, showAvatar = true
 
             <div
                 className={cn(
-                    "relative max-w-[75%] min-w-[120px] rounded-2xl px-4 py-2 shadow-message",
+                    "relative min-w-[120px] max-w-[82%] rounded-[1.6rem] px-4 py-3 shadow-message backdrop-blur-sm sm:max-w-[75%]",
                     isOwn
-                        ? "bg-message-sent text-message-sent-foreground rounded-br-md"
-                        : "bg-message-received text-message-received-foreground rounded-bl-md"
+                        ? "rounded-br-md bg-message-sent text-message-sent-foreground"
+                        : "rounded-bl-md border border-white/70 bg-message-received text-message-received-foreground dark:border-white/10"
                 )}
             >
                 {!isOwn && isGroup && senderProfile && (
-                    <p className="text-xs font-medium text-primary mb-1">
+                    <p className="mb-1 text-xs font-bold text-primary">
                         {senderProfile.full_name || senderProfile.username}
                     </p>
                 )}
 
-                <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">
+                <p className="break-words whitespace-pre-wrap text-[15px] leading-7">
                     {message.content}
                 </p>
 
                 <div
                     className={cn(
-                        "flex items-center justify-end gap-1 mt-1",
+                        "mt-2 flex items-center justify-end gap-1",
                         isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
                     )}
                 >
