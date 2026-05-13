@@ -26,7 +26,7 @@ async function authenticate(req, res, next) {
 router.get('/conversation/:conversationId', authenticate, async (req, res) => {
   try {
     const db = getDb();
-    
+
     // Verify user is a participant
     const conversation = await db.collection(COLLECTIONS.CONVERSATIONS)
       .findOne({ _id: new ObjectId(req.params.conversationId) });
@@ -55,7 +55,7 @@ router.get('/conversation/:conversationId', authenticate, async (req, res) => {
 router.post('/', authenticate, async (req, res) => {
   try {
     const db = getDb();
-    const { conversation_id, content } = req.body;
+    const { conversation_id, content, sent_at } = req.body;
 
     if (!conversation_id || !content) {
       return res.status(400).json({ error: 'conversation_id and content are required' });
@@ -108,6 +108,7 @@ router.post('/', authenticate, async (req, res) => {
       content: content.trim(),
       message_type: 'text',
       status: 'sent',
+      sent_at: sent_at,
       created_at: now,
       updated_at: now,
     };

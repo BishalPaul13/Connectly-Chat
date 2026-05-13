@@ -6,6 +6,7 @@ import { useChat } from "@/contexts/ChatContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useScreenshotDetection } from "@/hooks/useScreenshotDetection";
 
 export function ChatPanel({ onBack }) {
     const { user } = useAuth();
@@ -19,6 +20,8 @@ export function ChatPanel({ onBack }) {
         acceptConversationRequest,
         deleteConversationRequest,
     } = useChat();
+
+    useScreenshotDetection();
 
     useEffect(() => {
         if (activeConversation) {

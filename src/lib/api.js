@@ -190,10 +190,10 @@ export const messagesApi = {
         return apiRequest(`/messages/conversation/${conversationId}`);
     },
 
-    create: async (conversationId, content) => {
+    create: async (conversationId, content, sentAt) => {
         return apiRequest('/messages', {
             method: 'POST',
-            body: JSON.stringify({ conversation_id: conversationId, content }),
+            body: JSON.stringify({ conversation_id: conversationId, content, sent_at: sentAt }),
         });
     },
 };

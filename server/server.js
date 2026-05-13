@@ -66,6 +66,17 @@ io.on('connection', (socket) => {
     socket.leave(`conversation:${conversationId}`);
   });
 
+  socket.on('screenshot-taken', (data) => {
+    const { conversation_id, user_id, username } = data;
+    if (conversation_id) {
+      socket.to(`conversation:${conversation_id}`).emit('screenshot-alert', {
+        conversation_id,
+        user_id,
+        username
+      });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });

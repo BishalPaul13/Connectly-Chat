@@ -119,11 +119,20 @@ export function ChatProvider({ children }) {
 
         // Listen for new messages
         socket.on('new-message', async (message) => {
+            const receivedAt = Date.now();
+            if (message.sent_at) {
+                message.delivery_latency = receivedAt - message.sent_at;
+                console.log(`[Latency Debug] Message ${message.id} took ${message.delivery_latency}ms to reach this client.`);
+            }
+
             // 1. Update active conversation messages
             if (activeConversation && message.conversation_id === activeConversation.id) {
                 setMessages((prev) => {
-                    if (prev.find((m) => m.id === message.id)) {
-                        return prev;
+                    const existingIndex = prev.findIndex((m) => m.id === message.id);
+                    if (existingIndex !== -1) {
+                        const updated = [...prev];
+                        updated[existingIndex] = { ...updated[existingIndex], delivery_latency: message.delivery_latency };
+                        return updated;
                     }
                     if (message.sender_id === user.id) {
                         const matchIndex = prev.findIndex(
@@ -239,6 +248,17 @@ export function ChatProvider({ children }) {
             );
         });
 
+        socket.on('screenshot-alert', (data) => {
+            const { username } = data;
+            // Use sonner or toast for a premium notification
+            import('sonner').then(({ toast }) => {
+                toast.warning("Screenshot Taken", {
+                    description: `${username} took a screenshot of this conversation.`,
+                    duration: 5000,
+                });
+            });
+        });
+
         socket.on("conversation-created", async (data) => {
             if (!data?.conversation_id) return;
             try {
@@ -317,6 +337,7 @@ export function ChatProvider({ children }) {
             socket.off('conversation-updated');
             socket.off('conversation-deleted');
             socket.off('profile-status');
+            socket.off('screenshot-alert');
         };
     }, [user, activeConversation, conversations]);
 
@@ -394,8 +415,9 @@ export function ChatProvider({ children }) {
             return sortConversations([updatedConv, ...updatedConversations]);
         });
 
+        const sentAt = Date.now();
         try {
-            const newMessage = await messagesApi.create(activeConversation.id, content);
+            const newMessage = await messagesApi.create(activeConversation.id, content, sentAt);
 
             // Add message to local state immediately if not already added via socket
             if (newMessage) {
@@ -654,6 +676,17 @@ export function ChatProvider({ children }) {
         }
     };
 
+    const notifyScreenshot = useCallback(() => {
+        if (!user || !activeConversation) return;
+
+        const socket = getSocket();
+        socket.emit('screenshot-taken', {
+            conversation_id: activeConversation.id,
+            user_id: user.id,
+            username: user.username || user.full_name || "Someone"
+        });
+    }, [user, activeConversation]);
+
     return (
         <ChatContext.Provider
             value={{
@@ -676,6 +709,7 @@ export function ChatProvider({ children }) {
                 setTyping,
                 markAsRead,
                 refreshConversations,
+                notifyScreenshot,
             }}
         >
             {children}
