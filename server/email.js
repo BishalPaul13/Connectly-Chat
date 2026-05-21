@@ -41,84 +41,6 @@ function canLogOtpToConsole() {
   return !isProductionRuntime() || process.env.ALLOW_CONSOLE_OTP === 'true';
 }
 
-async function sendWithResend(email, otpCode) {
-  const { RESEND_API_KEY, RESEND_FROM, SMTP_FROM, SMTP_USER } = process.env;
-
-  if (!RESEND_API_KEY) {
-    return false;
-  }
-
-  const from = RESEND_FROM || SMTP_FROM || SMTP_USER || 'Connectly <onboarding@resend.dev>';
-  if (!from) {
-    throw new EmailDeliveryError(
-      'RESEND_FROM or SMTP_FROM is required to send OTP email.',
-      'Email sender is not configured.'
-    );
-  }
-
-  const content = getSignupEmailContent(otpCode);
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: [email],
-      subject: content.subject,
-      text: content.text,
-      html: content.html,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    let resendErrorMessage = errorBody;
-    try {
-      const resendError = JSON.parse(errorBody);
-      resendErrorMessage = resendError.message || resendError.error || errorBody;
-    } catch {
-      // Keep the raw body when Resend returns plain text.
-    }
-
-    const lowerErrorMessage = resendErrorMessage.toLowerCase();
-    const isResendTestDomainBlocked =
-      response.status === 403 &&
-      (from.includes('@resend.dev') ||
-        lowerErrorMessage.includes('verify a domain') ||
-        lowerErrorMessage.includes('own email address'));
-
-    if (isResendTestDomainBlocked) {
-      throw new EmailDeliveryError(
-        `Resend email failed with status ${response.status}: ${errorBody}`,
-        'Resend test sender can only email your Resend account address. Verify a domain in Resend and set RESEND_FROM to an address on that domain.'
-      );
-    }
-
-    if (response.status === 401 || response.status === 403) {
-      throw new EmailDeliveryError(
-        `Resend email failed with status ${response.status}: ${errorBody}`,
-        'Resend rejected the API key or sender domain. Check RESEND_API_KEY and make sure RESEND_FROM uses a verified Resend domain.'
-      );
-    }
-
-    if (response.status === 422) {
-      throw new EmailDeliveryError(
-        `Resend email failed with status ${response.status}: ${errorBody}`,
-        `Resend rejected the email request: ${resendErrorMessage}`
-      );
-    }
-
-    throw new EmailDeliveryError(
-      `Resend email failed with status ${response.status}: ${errorBody}`,
-      'Email provider rejected the verification email. Check the backend email provider settings.'
-    );
-  }
-
-  return true;
-}
-
 function getTransporter() {
   const {
     SMTP_HOST,
@@ -165,17 +87,14 @@ function getTransporter() {
 
 export async function sendSignupOtpEmail(email, otpCode) {
   const { SMTP_FROM, SMTP_USER } = process.env;
-  const sentWithResend = await sendWithResend(email, otpCode);
-
-  if (sentWithResend) {
-    return;
-  }
-
   const mailTransporter = getTransporter();
 
   if (!mailTransporter) {
     if (!canLogOtpToConsole()) {
-      throw new Error('Signup email delivery is not configured.');
+      throw new EmailDeliveryError(
+        'Signup email delivery is not configured.',
+        'Signup email delivery is not configured. Add SMTP settings to the backend.'
+      );
     }
 
     console.warn(
@@ -185,11 +104,18 @@ export async function sendSignupOtpEmail(email, otpCode) {
   }
 
   const content = getSignupEmailContent(otpCode);
-  await mailTransporter.sendMail({
-    from: SMTP_FROM || SMTP_USER,
-    to: email,
-    subject: content.subject,
-    text: content.text,
-    html: content.html,
-  });
+  try {
+    await mailTransporter.sendMail({
+      from: SMTP_FROM || SMTP_USER,
+      to: email,
+      subject: content.subject,
+      text: content.text,
+      html: content.html,
+    });
+  } catch (error) {
+    throw new EmailDeliveryError(
+      `SMTP email failed: ${error.message}`,
+      'Unable to connect to the SMTP email server. Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, and SMTP_PASS.'
+    );
+  }
 }

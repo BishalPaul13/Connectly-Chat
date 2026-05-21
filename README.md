@@ -86,9 +86,6 @@ SMTP_PASS=
 SMTP_FROM=
 DEBUG_SMTP=false
 
-# Optional HTTPS email API fallback for hosts that block SMTP ports
-RESEND_API_KEY=
-RESEND_FROM=
 ```
 
 Start the backend:
@@ -161,11 +158,8 @@ Backend:
 | `SMTP_PASS` | SMTP password | Not set |
 | `SMTP_FROM` | Sender email address | Falls back to `SMTP_USER` |
 | `DEBUG_SMTP` | Log SMTP env presence for debugging | `false` |
-| `RESEND_API_KEY` | Resend API key for HTTPS OTP email delivery | Not set |
-| `RESEND_FROM` | Resend sender address, such as `Connectly <otp@yourdomain.com>` | Falls back to `SMTP_FROM`, then `onboarding@resend.dev` |
 
 If SMTP is not configured, signup OTP codes are logged to the backend console for local development.
-For production Resend delivery to real users, verify a domain in Resend and set `RESEND_FROM` to an address on that verified domain. The default `onboarding@resend.dev` sender is only for limited testing.
 
 ## MongoDB Notes
 
