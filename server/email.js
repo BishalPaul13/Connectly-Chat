@@ -5,6 +5,21 @@ dotenv.config();
 
 let transporter;
 
+function getSignupEmailContent(otpCode) {
+  return {
+    subject: 'Your Connectly verification code',
+    text: `Your verification code is ${otpCode}. It will expire in 10 minutes.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
+        <h2 style="margin-bottom: 8px;">Verify your Connectly account</h2>
+        <p style="margin-top: 0;">Use this one-time code to complete your signup:</p>
+        <p style="font-size: 28px; letter-spacing: 4px; font-weight: bold; margin: 16px 0;">${otpCode}</p>
+        <p>This code expires in 10 minutes.</p>
+      </div>
+    `,
+  };
+}
+
 function isProductionRuntime() {
   return (
     process.env.NODE_ENV === 'production' ||
@@ -16,6 +31,42 @@ function isProductionRuntime() {
 
 function canLogOtpToConsole() {
   return !isProductionRuntime() || process.env.ALLOW_CONSOLE_OTP === 'true';
+}
+
+async function sendWithResend(email, otpCode) {
+  const { RESEND_API_KEY, RESEND_FROM, SMTP_FROM, SMTP_USER } = process.env;
+
+  if (!RESEND_API_KEY) {
+    return false;
+  }
+
+  const from = RESEND_FROM || SMTP_FROM || SMTP_USER;
+  if (!from) {
+    throw new Error('RESEND_FROM or SMTP_FROM is required to send OTP email.');
+  }
+
+  const content = getSignupEmailContent(otpCode);
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      subject: content.subject,
+      text: content.text,
+      html: content.html,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Resend email failed with status ${response.status}: ${errorBody}`);
+  }
+
+  return true;
 }
 
 function getTransporter() {
@@ -64,6 +115,12 @@ function getTransporter() {
 
 export async function sendSignupOtpEmail(email, otpCode) {
   const { SMTP_FROM, SMTP_USER } = process.env;
+  const sentWithResend = await sendWithResend(email, otpCode);
+
+  if (sentWithResend) {
+    return;
+  }
+
   const mailTransporter = getTransporter();
 
   if (!mailTransporter) {
@@ -77,18 +134,12 @@ export async function sendSignupOtpEmail(email, otpCode) {
     return;
   }
 
+  const content = getSignupEmailContent(otpCode);
   await mailTransporter.sendMail({
     from: SMTP_FROM || SMTP_USER,
     to: email,
-    subject: 'Your Connectly verification code',
-    text: `Your verification code is ${otpCode}. It will expire in 10 minutes.`,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
-        <h2 style="margin-bottom: 8px;">Verify your Connectly account</h2>
-        <p style="margin-top: 0;">Use this one-time code to complete your signup:</p>
-        <p style="font-size: 28px; letter-spacing: 4px; font-weight: bold; margin: 16px 0;">${otpCode}</p>
-        <p>This code expires in 10 minutes.</p>
-      </div>
-    `,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
   });
 }
