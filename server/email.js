@@ -5,6 +5,14 @@ dotenv.config();
 
 let transporter;
 
+class EmailDeliveryError extends Error {
+  constructor(message, publicMessage = message) {
+    super(message);
+    this.name = 'EmailDeliveryError';
+    this.publicMessage = publicMessage;
+  }
+}
+
 function getSignupEmailContent(otpCode) {
   return {
     subject: 'Your Connectly verification code',
@@ -40,9 +48,12 @@ async function sendWithResend(email, otpCode) {
     return false;
   }
 
-  const from = RESEND_FROM || SMTP_FROM || SMTP_USER;
+  const from = RESEND_FROM || SMTP_FROM || SMTP_USER || 'Connectly <onboarding@resend.dev>';
   if (!from) {
-    throw new Error('RESEND_FROM or SMTP_FROM is required to send OTP email.');
+    throw new EmailDeliveryError(
+      'RESEND_FROM or SMTP_FROM is required to send OTP email.',
+      'Email sender is not configured.'
+    );
   }
 
   const content = getSignupEmailContent(otpCode);
@@ -63,7 +74,22 @@ async function sendWithResend(email, otpCode) {
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`Resend email failed with status ${response.status}: ${errorBody}`);
+    const isResendTestDomainBlocked =
+      response.status === 403 &&
+      from.includes('@resend.dev') &&
+      errorBody.toLowerCase().includes('verify a domain');
+
+    if (isResendTestDomainBlocked) {
+      throw new EmailDeliveryError(
+        `Resend email failed with status ${response.status}: ${errorBody}`,
+        'Resend test sender can only email your Resend account address. Verify a domain in Resend and set RESEND_FROM to an address on that domain.'
+      );
+    }
+
+    throw new EmailDeliveryError(
+      `Resend email failed with status ${response.status}: ${errorBody}`,
+      'Email provider rejected the verification email. Check the backend email provider settings.'
+    );
   }
 
   return true;

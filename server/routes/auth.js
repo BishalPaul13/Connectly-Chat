@@ -94,7 +94,7 @@ router.post('/signup/request-otp', async (req, res) => {
       await db.collection(COLLECTIONS.SIGNUP_OTPS).deleteOne({ email: normalizedEmail });
 
       return res.status(503).json({
-        error: 'Unable to send verification code right now. Please try again later.',
+        error: emailError.publicMessage || 'Unable to send verification code right now. Please try again later.',
       });
     }
 
