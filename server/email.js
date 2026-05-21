@@ -74,15 +74,39 @@ async function sendWithResend(email, otpCode) {
 
   if (!response.ok) {
     const errorBody = await response.text();
+    let resendErrorMessage = errorBody;
+    try {
+      const resendError = JSON.parse(errorBody);
+      resendErrorMessage = resendError.message || resendError.error || errorBody;
+    } catch {
+      // Keep the raw body when Resend returns plain text.
+    }
+
+    const lowerErrorMessage = resendErrorMessage.toLowerCase();
     const isResendTestDomainBlocked =
       response.status === 403 &&
-      from.includes('@resend.dev') &&
-      errorBody.toLowerCase().includes('verify a domain');
+      (from.includes('@resend.dev') ||
+        lowerErrorMessage.includes('verify a domain') ||
+        lowerErrorMessage.includes('own email address'));
 
     if (isResendTestDomainBlocked) {
       throw new EmailDeliveryError(
         `Resend email failed with status ${response.status}: ${errorBody}`,
         'Resend test sender can only email your Resend account address. Verify a domain in Resend and set RESEND_FROM to an address on that domain.'
+      );
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      throw new EmailDeliveryError(
+        `Resend email failed with status ${response.status}: ${errorBody}`,
+        'Resend rejected the API key or sender domain. Check RESEND_API_KEY and make sure RESEND_FROM uses a verified Resend domain.'
+      );
+    }
+
+    if (response.status === 422) {
+      throw new EmailDeliveryError(
+        `Resend email failed with status ${response.status}: ${errorBody}`,
+        `Resend rejected the email request: ${resendErrorMessage}`
       );
     }
 
