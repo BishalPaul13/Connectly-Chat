@@ -1,10 +1,10 @@
 # Connectly Chat
 
-Connectly Chat is a full-stack real-time messaging app built with React, Vite, Tailwind CSS, shadcn/ui-style components, Express, MongoDB, JWT authentication, email OTP signup, and Socket.io.
+Connectly Chat is a full-stack real-time messaging app built with React, Vite, Tailwind CSS, shadcn/ui-style components, Express, MongoDB, JWT authentication, and Socket.io.
 
 ## Features
 
-- Email and password authentication with signup OTP verification
+- Email and password authentication
 - One-to-one conversations with request, accept, delete, block, and unblock flows
 - Group conversations with participant management
 - Real-time messages, typing indicators, read status updates, profile status updates, and screenshot alerts
@@ -15,7 +15,7 @@ Connectly Chat is a full-stack real-time messaging app built with React, Vite, T
 ## Tech Stack
 
 - Frontend: React 18, Vite, React Router, Tailwind CSS, Radix UI primitives, Socket.io client
-- Backend: Node.js, Express, MongoDB, Socket.io, JWT, bcryptjs, Nodemailer
+- Backend: Node.js, Express, MongoDB, Socket.io, JWT, bcryptjs
 - Testing and quality: Vitest, React Testing Library, ESLint
 
 ## Project Structure
@@ -23,11 +23,10 @@ Connectly Chat is a full-stack real-time messaging app built with React, Vite, T
 ```text
 .
 |-- public/                 Static frontend assets
-|-- server/                 Express API, MongoDB access, auth, email, Socket.io server
+|-- server/                 Express API, MongoDB access, auth, Socket.io server
 |   |-- routes/             API route handlers
 |   |-- auth.js             Password hashing and JWT helpers
 |   |-- db.js               MongoDB connection
-|   |-- email.js            OTP email delivery
 |   |-- models.js           Collection names and document formatting
 |   `-- server.js           API and Socket.io entrypoint
 |-- src/                    React frontend
@@ -46,7 +45,6 @@ Connectly Chat is a full-stack real-time messaging app built with React, Vite, T
 - Node.js 18 or newer
 - npm
 - MongoDB, either local or hosted
-- SMTP credentials if you want real OTP emails
 
 ## Getting Started
 
@@ -76,16 +74,6 @@ Create a backend `.env` file in `server/`:
 MONGODB_URI=mongodb://localhost:27017/chatapp
 JWT_SECRET=replace-with-a-long-random-secret
 CLIENT_URL=http://localhost:8080
-
-# Optional SMTP settings for signup OTP emails
-SMTP_HOST=
-SMTP_PORT=
-SMTP_SECURE=false
-SMTP_USER=
-SMTP_PASS=
-SMTP_FROM=
-DEBUG_SMTP=false
-
 ```
 
 Start the backend:
@@ -151,15 +139,6 @@ Backend:
 | `JWT_SECRET` | Secret used to sign JWTs | Development fallback in code |
 | `CLIENT_URL` | Allowed frontend origin for CORS | Not set |
 | `PORT` | Backend server port | `3001` |
-| `SMTP_HOST` | SMTP host for OTP email | Not set |
-| `SMTP_PORT` | SMTP port | Not set |
-| `SMTP_SECURE` | Whether SMTP uses TLS | `false` |
-| `SMTP_USER` | SMTP username | Not set |
-| `SMTP_PASS` | SMTP password | Not set |
-| `SMTP_FROM` | Sender email address | Falls back to `SMTP_USER` |
-| `DEBUG_SMTP` | Log SMTP env presence for debugging | `false` |
-
-If SMTP is not configured, signup OTP codes are logged to the backend console for local development.
 
 ## MongoDB Notes
 
@@ -167,13 +146,12 @@ The app uses these collections:
 
 - `users`
 - `profiles`
-- `signup_otps`
 - `conversations`
 - `messages`
 - `typing_indicators`
 - `blocks`
 
-For production, add indexes for commonly queried fields such as user email, profile username, profile user ID, conversation participants, message conversation ID, message creation time, block pairs, and signup OTP email.
+For production, add indexes for commonly queried fields such as user email, profile username, profile user ID, conversation participants, message conversation ID, message creation time, and block pairs.
 
 ## Development Notes
 
@@ -193,7 +171,5 @@ Deploy the frontend and backend separately unless your hosting provider supports
 If the frontend cannot connect to the API, confirm the backend is running and that `VITE_API_URL` points to the correct `/api` URL.
 
 If Socket.io events do not arrive, confirm `VITE_SOCKET_URL` points to the backend origin without `/api`.
-
-If signup email does not send, configure SMTP variables or check the backend console for the local development OTP log.
 
 If PowerShell blocks npm scripts on Windows, use `npm.cmd` instead of `npm`, or adjust the local execution policy.

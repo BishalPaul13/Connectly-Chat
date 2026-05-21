@@ -55,17 +55,10 @@ async function apiRequest(
 
 // Auth API
 export const authApi = {
-    requestSignupOtp: async (email, password, username, fullName) => {
-        return apiRequest('/auth/signup/request-otp', {
+    signUp: async (email, password, username, fullName) => {
+        const data = await apiRequest('/auth/signup', {
             method: 'POST',
             body: JSON.stringify({ email, password, username, fullName }),
-        });
-    },
-
-    verifySignupOtp: async (email, otp) => {
-        const data = await apiRequest('/auth/signup/verify-otp', {
-            method: 'POST',
-            body: JSON.stringify({ email, otp }),
         });
         setToken(data.token);
         return { data, error: null };
