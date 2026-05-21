@@ -87,7 +87,16 @@ router.post('/signup/request-otp', async (req, res) => {
       { upsert: true }
     );
 
-    await sendSignupOtpEmail(normalizedEmail, otpCode);
+    try {
+      await sendSignupOtpEmail(normalizedEmail, otpCode);
+    } catch (emailError) {
+      console.error('Signup OTP email failed:', emailError);
+      await db.collection(COLLECTIONS.SIGNUP_OTPS).deleteOne({ email: normalizedEmail });
+
+      return res.status(503).json({
+        error: 'Unable to send verification code right now. Please try again later.',
+      });
+    }
 
     return res.json({
       message: 'Verification code sent to your email.',

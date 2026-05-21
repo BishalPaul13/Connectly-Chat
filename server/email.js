@@ -5,6 +5,19 @@ dotenv.config();
 
 let transporter;
 
+function isProductionRuntime() {
+  return (
+    process.env.NODE_ENV === 'production' ||
+    Boolean(process.env.RENDER) ||
+    Boolean(process.env.VERCEL) ||
+    Boolean(process.env.RAILWAY_ENVIRONMENT)
+  );
+}
+
+function canLogOtpToConsole() {
+  return !isProductionRuntime() || process.env.ALLOW_CONSOLE_OTP === 'true';
+}
+
 function getTransporter() {
   const {
     SMTP_HOST,
@@ -32,14 +45,18 @@ function getTransporter() {
     return null;
   }
 
+  const port = Number(SMTP_PORT);
   transporter = nodemailer.createTransport({
     host: SMTP_HOST,
-    port: Number(SMTP_PORT),
-    secure: String(SMTP_SECURE).toLowerCase() === 'true',
+    port,
+    secure: String(SMTP_SECURE || port === 465).toLowerCase() === 'true',
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 
   return transporter;
@@ -50,6 +67,10 @@ export async function sendSignupOtpEmail(email, otpCode) {
   const mailTransporter = getTransporter();
 
   if (!mailTransporter) {
+    if (!canLogOtpToConsole()) {
+      throw new Error('Signup email delivery is not configured.');
+    }
+
     console.warn(
       `[OTP-DEV] SMTP not configured. OTP for ${email}: ${otpCode}`
     );
